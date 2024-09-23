@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 [ApiController]
 public class FileDownloadController : ControllerBase
 {
-    private readonly string _uploadFolder = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+    private readonly string _uploadFolder = Path.Combine(Directory.GetCurrentDirectory(), "..\\Uploads");
 
     // Download endpoint for streaming file to the client
     [HttpGet("download/{fileName}")]

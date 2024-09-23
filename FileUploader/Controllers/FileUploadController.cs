@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 
 namespace FileUploader.Controllers
 {
@@ -7,7 +6,7 @@ namespace FileUploader.Controllers
     [ApiController]
     public class FileUploadController : ControllerBase
     {
-        private readonly string _uploadFolder = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+        private readonly string _uploadFolder = Path.Combine(Directory.GetCurrentDirectory(), "..\\Uploads");
 
         public FileUploadController()
         {
@@ -15,7 +14,7 @@ namespace FileUploader.Controllers
                 Directory.CreateDirectory(_uploadFolder);
         }
 
-        [HttpPost("upload")]
+        [HttpPost("upload-full")]
         public async Task<IActionResult> Upload([FromForm] IFormFile chunk, [FromForm] string fileName, [FromForm] long chunkNumber, [FromForm] long totalChunks)
         {
             if (!Directory.Exists(_uploadFolder))
@@ -120,6 +119,11 @@ namespace FileUploader.Controllers
                         await inputStream.CopyToAsync(outputStream);
                     }
                 }
+            }
+
+            if (Directory.Exists(Path.GetDirectoryName(filePath)))
+            {
+                Directory.Delete(Path.GetDirectoryName(filePath), true);
             }
         }
     }

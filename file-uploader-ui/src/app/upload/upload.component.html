@@ -1,0 +1,11 @@
+<input type="file" (change)="onFileSelected($event)">
+<input type="checkbox" #checkboxField checked> <span>Full Upload</span>
+<br>
+<br>
+<button (click)="upload(checkboxField.checked)">Upload File</button>
+<div *ngIf="uploadProgress > 0">
+  <p>Progress: {{ uploadProgress }}%</p>
+  <div style="border: 1px solid #ddd; width: 100%; height: 30px;">
+    <div [style.width.%]="uploadProgress" style="background: green; height: 100%;"></div>
+  </div>
+</div>
