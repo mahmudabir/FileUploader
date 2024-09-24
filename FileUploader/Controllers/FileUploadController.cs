@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using FileUploader.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace FileUploader.Controllers
 {
@@ -15,27 +16,27 @@ namespace FileUploader.Controllers
         }
 
         [HttpPost("upload-full")]
-        public async Task<IActionResult> Upload([FromForm] IFormFile chunk, [FromForm] string fileName, [FromForm] long chunkNumber, [FromForm] long totalChunks)
+        public async Task<IActionResult> Upload([FromForm] FileUpload uploadedFile)
         {
             if (!Directory.Exists(_uploadFolder))
                 Directory.CreateDirectory(_uploadFolder);
 
-            string filePath = Path.Combine(_uploadFolder, fileName);
+            string filePath = Path.Combine(_uploadFolder, uploadedFile.fileName);
 
             try
             {
                 // Append chunk to file
-                using (var stream = new FileStream(filePath, chunkNumber == 1 ? FileMode.Create : FileMode.Append, FileAccess.Write))
+                using (var stream = new FileStream(filePath, uploadedFile.chunkNumber == 1 ? FileMode.Create : FileMode.Append, FileAccess.Write))
                 {
-                    await chunk.CopyToAsync(stream);
+                    await uploadedFile.chunk.CopyToAsync(stream);
                 }
 
-                Console.WriteLine("totalChunks: " + totalChunks);
-                Console.WriteLine("chunkNumber: " + chunkNumber);
-                Console.WriteLine("chunkSize: " + (((chunk.Length / 1024) / 1024)) + " MB");
+                Console.WriteLine("totalChunks: " + uploadedFile.totalChunks);
+                Console.WriteLine("chunkNumber: " + uploadedFile.chunkNumber);
+                Console.WriteLine("chunkSize: " + (((uploadedFile.chunk.Length / 1024) / 1024)) + " MB");
 
                 // Check if all chunks have been received
-                if (chunkNumber == totalChunks)
+                if (uploadedFile.chunkNumber == uploadedFile.totalChunks)
                 {
                     Console.Clear();
                     return Ok(new { message = "File upload completed successfully." });
@@ -50,45 +51,49 @@ namespace FileUploader.Controllers
         }
 
         [HttpPost("upload-chunk")]
-        public async Task<IActionResult> UploadChunk([FromForm] IFormFile chunk, [FromForm] string fileName, [FromForm] long chunkNumber, [FromForm] long totalChunks)
+        public async Task<IActionResult> UploadChunk([FromForm] FileUpload uploadedFile)
         {
             if (!Directory.Exists(_uploadFolder))
                 Directory.CreateDirectory(_uploadFolder);
 
-            string fileExtension = Path.GetExtension(fileName);
-            fileName = fileName.Trim(fileExtension.ToCharArray());
+            string fileExtension = Path.GetExtension(uploadedFile.fileName);
+            uploadedFile.fileName = uploadedFile.fileName.Trim(fileExtension.ToCharArray());
 
             // Determine the length of the string based on the total number of chunks
-            int totalLength = totalChunks.ToString().Length;
+            int totalLength = uploadedFile.totalChunks.ToString().Length;
 
             // Generate the zero-padded chunk string
-            string paddedChunkNumber = chunkNumber.ToString().PadLeft(totalLength, '0');
+            string paddedChunkNumber = uploadedFile.chunkNumber.ToString().PadLeft(totalLength, '0');
 
 
-            string filePath = Path.Combine(_uploadFolder, $"{fileName}");
+            string filePath = Path.Combine(_uploadFolder, $"{uploadedFile.fileName}");
             string tempFilePath = filePath;
             string fileDirectoryName = Path.Combine(Path.GetDirectoryName(filePath) ?? "", tempFilePath);
             if (!Directory.Exists(fileDirectoryName))
                 Directory.CreateDirectory(fileDirectoryName);
 
-            filePath = Path.Combine(fileDirectoryName, $"{fileName}~{paddedChunkNumber}{fileExtension}");
+            filePath = Path.Combine(fileDirectoryName, $"{uploadedFile.fileName}~{paddedChunkNumber}{fileExtension}");
 
             try
             {
+
                 // Append chunk to file
-                using (var stream = new FileStream(filePath, chunkNumber == 1 ? FileMode.Create : FileMode.Append, FileAccess.Write))
+                using (var stream = new FileStream(filePath, uploadedFile.chunkNumber == 1 ? FileMode.Create : FileMode.Append, FileAccess.Write))
                 {
-                    await chunk.CopyToAsync(stream);
+                    await uploadedFile.chunk.CopyToAsync(stream);
                 }
 
                 Console.WriteLine("chunkNumber: " + paddedChunkNumber);
 
                 // Check if all chunks have been received
-                if (chunkNumber == totalChunks)
+                if (uploadedFile.chunkNumber == uploadedFile.totalChunks)
                 {
-                    string combinedFilePath = Path.Combine(_uploadFolder, $"{fileName}{fileExtension}");
+                    string combinedFilePath = Path.Combine(_uploadFolder, $"{uploadedFile.fileName}{fileExtension}");
 
-                    await CombineFilesAsync(filePath, combinedFilePath);
+                    Task.Run(async () =>
+                    {
+                        await CombineFilesAsync(filePath, combinedFilePath);
+                    });
 
                     Console.Clear();
                     return Ok(new { message = "File upload completed successfully." });

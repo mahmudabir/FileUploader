@@ -33,8 +33,11 @@ export class UploadComponent {
 
   upload(isFullUpload: boolean) {
     this.uploadFile(isFullUpload, this.selectedFile).subscribe({
-      error: (err) => console.log('Upload failed:', err),
-      complete: () => console.log('Upload complete!')
+      error: (err) => {
+        console.log('Upload failed:', err);
+        alert('Upload failed');
+      },
+      complete: () => alert('Upload complete!')
     });
   }
 

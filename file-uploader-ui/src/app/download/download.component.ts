@@ -81,6 +81,8 @@ export class DownloadComponent {
   
               // Revoke the blob URL to free memory
               URL.revokeObjectURL(blobUrl);
+
+              alert("File downloaded successfully");
             } else {
   
             }
