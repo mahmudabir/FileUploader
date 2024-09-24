@@ -13,8 +13,10 @@ import { CommonModule } from '@angular/common';
 export class VideoPlayerComponent implements OnInit {
   @ViewChild('videoPlayer') videoPlayer!: ElementRef<HTMLVideoElement>;
 
+  private loadFullVideo = true;
+
   private apiUrl = 'https://localhost:7001/api/video';
-  private fileName = 'Avatar The Last Airbender S01E01.mp4';
+  private fileName = 'Wednesday S01E02  1080p NF WEBRip x265 HEVC MSubs [Dual Audio][Hindi 5.1+English 5.1] -OlaM.mkv';//'Avatar The Last Airbender S01E01.mp4';
   private chunkSize = 10 * 1024 * 1024; // 10 MB
   private mediaSource: MediaSource;
   private sourceBuffer: SourceBuffer | null = null;
@@ -76,7 +78,7 @@ export class VideoPlayerComponent implements OnInit {
     if (this.isLoading || this.isCompleted) return;
     this.isLoading = true;
     const start = this.currentChunk * this.chunkSize;
-    this.http.get(`${this.apiUrl}/${this.fileName}?start=${start}`, {
+    this.http.get(`${this.apiUrl}/${this.fileName}?start=${start}&getFullSize=${this.loadFullVideo}`, {
       responseType: 'arraybuffer',
       observe: 'response'
     }).subscribe(
@@ -98,6 +100,9 @@ export class VideoPlayerComponent implements OnInit {
         if (this.loadedSize >= this.totalSize) {
           this.isCompleted = true;
           this.shouldEndStream = true;
+
+          const video = this.videoPlayer.nativeElement;
+          video.src = URL.createObjectURL( new Blob([response.body], { type: 'application/octet-stream' }));
         }
       },
       error => {
