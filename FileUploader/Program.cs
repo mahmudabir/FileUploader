@@ -44,6 +44,9 @@ namespace FileUploader
 
             app.UseAuthorization();
 
+            // Enable static file serving
+            app.UseStaticFiles();
+
             app.UseCors("CorsPolicy");
 
             app.UseRouting();

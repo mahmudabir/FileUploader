@@ -57,6 +57,30 @@
 
 //ffmpeg - i "inputPath.mp4" - profile:v baseline -level 3.0 -s 640x360 -start_number 0 -hls_time 10 -hls_list_size 0 -f hls "outputPath.m3u8"
 
+using System.Threading;
+
+//ffmpeg - i input.mkv - codec:v libx264 -codec:a aac -hls_time 10 -hls_playlist_type vod output.m3u8
+
+
+//ffmpeg -i input.mkv -codec:v libx264 -codec:a aac -hls_time 10 -hls_playlist_type vod -hls_flags independent_segments -threads 8 -preset ultrafast output.m3u8
+
+//ffmpeg -i input.mkv -c:v libx264 -profile:v main -level 3.1 -crf 20 -c:a aac -b:a 128k -ac 2 -hls_time 15 -hls_list_size 0 -hls_flags independent_segments -threads 8 -preset ultrafast output.m3u8
+
+
+// Multiple quality
+//ffmpeg -i inputs.mp4 -master_pl_name master.m3u8 -filter:v:0 scale=640:360 -c:a aac -ar 48000 -b:a 96k -c:v:0 libx264 -b:v:0 800k -threads 8 -preset ultrafast -g 48 -keyint_min 48 -sc_threshold 0 -hls_time 10 -hls_segment_filename "360p_%03d.ts" -hls_playlist_type vod -hls_flags independent_segments -f hls 360p.m3u8 -filter:v:1 scale=1280:720 -c:a aac -ar 48000 -b:a 128k -c:v:1 libx264 -b:v:1 2800k -threads 8 -preset ultrafast -g 48 -keyint_min 48 -sc_threshold 0 -hls_time 10 -hls_segment_filename "720p_%03d.ts" -hls_playlist_type vod -hls_flags independent_segments -f hls 720p.m3u8 -filter:v:2 scale=1920:1080 -c:a aac -ar 48000 -b:a 192k -c:v:2 libx264 -b:v:2 5000k -threads 8 -preset ultrafast -g 48 -keyint_min 48 -sc_threshold 0 -hls_time 10 -hls_segment_filename "1080p_%03d.ts" -hls_playlist_type vod -hls_flags independent_segments -f hls 1080p.m3u8
+
+
+//#EXTM3U
+
+//#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=360x640
+//360p.m3u8
+
+//#EXT-X-STREAM-INF:BANDWIDTH=2800000,RESOLUTION=720x1280
+//720p.m3u8
+
+//#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=1080x1920
+//1080p.m3u8
 
 //=======================
 
