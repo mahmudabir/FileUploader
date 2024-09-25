@@ -1,6 +1,7 @@
 import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { HttpClient, HttpEventType, HttpResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
+import fluidPlayer from 'fluid-player';
 
 @Component({
   selector: 'app-video-player',
@@ -33,12 +34,43 @@ export class VideoPlayerComponent implements OnInit {
     this.mediaSource = new MediaSource();
   }
 
+  videoUrl: string = "https://localhost:7001/api/Video/stream/output.m3u8"
+
   ngOnInit() {
     // Initialization that doesn't depend on the view
   }
 
   ngAfterViewInit() {
-    this.initializeVideo();
+    fluidPlayer(
+      'video-id', {
+      "layoutControls": {
+        "controlBar": {
+          "autoHideTimeout": 3,
+          "animated": true,
+          "autoHide": true
+        },
+        "htmlOnPauseBlock": {
+          "html": null,
+          "height": null,
+          "width": null
+        },
+        "autoPlay": true,
+        "mute": true,
+        "allowTheatre": true,
+        "playPauseAnimation": true,
+        "playbackRateEnabled": true,
+        "allowDownload": true,
+        "playButtonShowing": true,
+        "fillToContainer": true,
+        "posterImage": ""
+      },
+      "vastOptions": {
+        "adList": [],
+        "adCTAText": false
+        // "adCTATextPosition": ""
+      }
+    });
+    // this.initializeVideo();
   }
 
   private initializeVideo() {
@@ -102,7 +134,7 @@ export class VideoPlayerComponent implements OnInit {
           this.shouldEndStream = true;
 
           const video = this.videoPlayer.nativeElement;
-          video.src = URL.createObjectURL( new Blob([response.body], { type: 'application/octet-stream' }));
+          video.src = URL.createObjectURL(new Blob([response.body], { type: 'application/octet-stream' }));
         }
       },
       error => {

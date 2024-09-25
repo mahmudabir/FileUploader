@@ -1,9 +1,5 @@
-<h1>Video</h1>
-
-<video #videoPlayer height="500" width="500" controls>Your browser does not support HTML5 video.</video>
-<div *ngIf="isLoading">Loading... {{ loadedSize | number:'1.0-0' }} / {{ totalSize | number:'1.0-0' }} bytes</div>
-<div *ngIf="isCompleted">Video fully loaded</div>
-
-<!-- <video #videoPlayer height="500" width="500" controls>Your browser does not support HTML5 video.</video> -->
-<!-- private apiUrl = 'https://localhost:7001/api/video';
-private fileName = 'Avatar The Last Airbender S01E01.mp4'; -->
+<div style="height: 360px !important; width: 680px !important;">
+    <video id="video-id" class="video-js" controls>
+        <source src="{{videoUrl}}" type="application/x-mpegURL" />
+    </video>
+</div>
