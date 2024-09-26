@@ -68,8 +68,7 @@ using System.Threading;
 
 
 // Multiple quality
-//ffmpeg -i inputs.mp4 -master_pl_name master.m3u8 -filter:v:0 scale=640:360 -c:a aac -ar 48000 -b:a 96k -c:v:0 libx264 -b:v:0 800k -threads 8 -preset ultrafast -g 48 -keyint_min 48 -sc_threshold 0 -hls_time 10 -hls_segment_filename "360p_%03d.ts" -hls_playlist_type vod -hls_flags independent_segments -f hls 360p.m3u8 -filter:v:1 scale=1280:720 -c:a aac -ar 48000 -b:a 128k -c:v:1 libx264 -b:v:1 2800k -threads 8 -preset ultrafast -g 48 -keyint_min 48 -sc_threshold 0 -hls_time 10 -hls_segment_filename "720p_%03d.ts" -hls_playlist_type vod -hls_flags independent_segments -f hls 720p.m3u8 -filter:v:2 scale=1920:1080 -c:a aac -ar 48000 -b:a 192k -c:v:2 libx264 -b:v:2 5000k -threads 8 -preset ultrafast -g 48 -keyint_min 48 -sc_threshold 0 -hls_time 10 -hls_segment_filename "1080p_%03d.ts" -hls_playlist_type vod -hls_flags independent_segments -f hls 1080p.m3u8
-
+//ffmpeg -i inputs.mp4 -filter:v:0 scale=360:640 -c:a aac -ar 48000 -b:a 64k -c:v:0 libx264 -b:v:0 250k -preset ultrafast -g 48 -keyint_min 48 -sc_threshold 0 -hls_time 10 -hls_segment_filename "360p_%03d.ts" -hls_playlist_type vod -hls_flags independent_segments -filter:v:1 scale=720:1280 -c:a aac -ar 48000 -b:a 96k -c:v:1 libx264 -b:v:1 500k -preset ultrafast -g 48 -keyint_min 48 -sc_threshold 0 -hls_time 10 -hls_segment_filename "720p_%03d.ts" -hls_playlist_type vod -hls_flags independent_segments -filter:v:2 scale=1080:1920 -c:a aac -ar 48000 -b:a 128k -c:v:2 libx264 -b:v:2 1500k -preset ultrafast -g 48 -keyint_min 48 -sc_threshold 0 -hls_time 10 -hls_segment_filename "1080p_%03d.ts" -hls_playlist_type vod -hls_flags independent_segments -master_pl_name master.m3u8 -hls_list_size 0 -f hls master.m3u8
 
 //#EXTM3U
 
