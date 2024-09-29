@@ -56,35 +56,35 @@ export class DownloadComponent {
     } else {
       this.downloadFile(fileName).subscribe({
         next: (blob) => {
-  
+
           try {
             if (blob.status == 'progress') {
-              
+
             } else if (blob.status == 'completed') {
               // Create a URL for the blob data
               const blobUrl = window.URL.createObjectURL(blob.blob);
-  
+
               // Create a temporary anchor element
               const link = document.createElement('a');
               link.href = blobUrl;
               link.download = fileName; // Specify the file name
               // link.target = "_blank";
-  
+
               // Append the anchor to the body (required for Firefox)
               document.body.appendChild(link);
-  
+
               // Programmatically click the anchor to trigger the download
               link.click();
-  
+
               // Remove the anchor from the DOM
               document.body.removeChild(link);
-  
+
               // Revoke the blob URL to free memory
               URL.revokeObjectURL(blobUrl);
 
               alert("File downloaded successfully");
             } else {
-  
+
             }
           } catch (error: any) {
             // console.log(error.message);
@@ -98,4 +98,4 @@ export class DownloadComponent {
     }
 
   }
- }
+}

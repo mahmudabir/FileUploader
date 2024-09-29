@@ -21,6 +21,8 @@ namespace FileUploader
                 options.MultipartBodyLengthLimit = long.MaxValue; // Large file size limit
             });
 
+            builder.Services.AddMemoryCache();
+
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("CorsPolicy", policy =>

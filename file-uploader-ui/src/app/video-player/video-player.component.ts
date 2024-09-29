@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
 import fluidPlayer from 'fluid-player';
 
 @Component({
@@ -8,30 +9,29 @@ import fluidPlayer from 'fluid-player';
   templateUrl: `./video-player.component.html`,
   standalone: true,
   imports: [
-    CommonModule,
+    CommonModule
   ],
 })
 export class VideoPlayerComponent implements OnInit {
   @ViewChild('videoPlayer') videoPlayer!: ElementRef<HTMLVideoElement>;
 
-  videoUrl = 'https://localhost:7001/api/hls/master';
+  videoUrl = 'https://localhost:7001/api/Streaming/master.m3u8';
+
 
   constructor(private http: HttpClient) {
-    setTimeout(() => {
-      this.initializeFluidPlayer();
-    }, 0);
   }
 
   ngOnInit() {
   }
 
   ngAfterViewInit() {
-    this.initializeFluidPlayer();
+    setTimeout(() => {
+      this.initializeFluidPlayer();
+    }, 1000);
   }
 
   initializeFluidPlayer() {
-    fluidPlayer(
-      'videoElement', {
+    var player = fluidPlayer('videoElement', {
       layoutControls: {
         persistentSettings: {
           volume: true, // Default true
