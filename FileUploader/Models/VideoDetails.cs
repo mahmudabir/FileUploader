@@ -15,4 +15,20 @@
         public string fps { get; set; }
     }
 
+
+    public class VideoKeyFrame
+    {
+        public List<Frame> frames { get; set; }
+    }
+
+    public class Frame
+    {
+        public long key_frame { get; set; }
+        public List<SideDataList> side_data_list { get; set; }
+    }
+
+    public class SideDataList
+    {
+        public string side_data_type { get; set; }
+    }
 }
