@@ -188,10 +188,10 @@ namespace FileUploader.Controllers
             // Cache key for the specific segment
             string cacheKey = $"{resolution}_{index}";
 
-            //if (_cache.TryGetValue(cacheKey, out byte[] cachedSegment))
-            //{
-            //    return File(cachedSegment, "video/mp2t");
-            //}
+            if (_cache.TryGetValue(cacheKey, out byte[] cachedSegment))
+            {
+                return File(cachedSegment, "video/mp2t");
+            }
 
             var videoData = GetVideoDetails(videoPath);
             double fps = int.Parse(videoData.fps);
@@ -216,7 +216,7 @@ namespace FileUploader.Controllers
             double startTime = index * SegmentDuration;
 
             // Use `-ss` for precise seeking to a specific segment and align with keyframes
-            string segmentCommand = $"-ss {startTime} -i \"{videoPath}\" -vf scale={resolution} " +
+            string segmentCommand = $"-ss {startTime} -i \"{videoPath}\" -vf scale={resolution} -output_ts_offset {startTime} " +
                                 $"-c:v h264 -preset ultrafast -g {SegmentDuration * 2} " + // Keyframe interval set to match segment duration
                                 $"-f mpegts -t {SegmentDuration} pipe:1";
 
@@ -266,16 +266,16 @@ namespace FileUploader.Controllers
                     return StatusCode(500, "Error starting FFmpeg process");
                 }
 
-                //await using var memoryStream = new MemoryStream();
-                //await process.StandardOutput.BaseStream.CopyToAsync(memoryStream);
+                await using var memoryStream = new MemoryStream();
+                await process.StandardOutput.BaseStream.CopyToAsync(memoryStream);
 
-                //var segmentData = memoryStream.ToArray();
-                //// Cache the segment for future requests
-                ////var cacheEntryOptions = new MemoryCacheEntryOptions()
-                ////    .SetSlidingExpiration(TimeSpan.FromMinutes(10)); // Cache for 10 minutes
-                ////_cache.Set(cacheKey, segmentData, cacheEntryOptions);
+                var segmentData = memoryStream.ToArray();
+                // Cache the segment for future requests
+                var cacheEntryOptions = new MemoryCacheEntryOptions()
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(10)); // Cache for 10 minutes
+                _cache.Set(cacheKey, segmentData, cacheEntryOptions);
 
-                return File(process.StandardOutput.BaseStream, "video/mp2t");
+                return File(segmentData, "video/mp2t");
                 //return File(process.StandardOutput.BaseStream, "video/mp2t");
             }
 
