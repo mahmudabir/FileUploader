@@ -216,14 +216,17 @@ namespace FileUploader.Controllers
             double startTime = index * SegmentDuration;
 
             // Use `-ss` for precise seeking to a specific segment and align with keyframes
-            string segmentCommand = $"-ss {startTime} -i \"{videoPath}\" -vf scale={resolution} -output_ts_offset {startTime} " +
-                                $"-c:v h264 -preset ultrafast -g {SegmentDuration * 2} " + // Keyframe interval set to match segment duration
+            string segmentCommand = $"-ss {startTime} -i \"{videoPath}\" -vf scale={resolution} " +
+                                $"-c:v h264 -preset ultrafast " + // Video encoding
+                                $"-c:a aac -b:a 128k -ac 2 " + // Audio encoding
+                                //$"-g {SegmentDuration * 2} " + // Keyframe interval set to match segment duration
+                                $" -output_ts_offset {startTime} " +
                                 $"-f mpegts -t {SegmentDuration} pipe:1";
 
 
             //// Updated ffmpeg arguments with precise seeking and keyframe alignment
             //string segmentCommand = $"-ss {startTime} -i \"{videoPath}\" -vf scale={resolution} " +
-            //                    $"-c:v libx264 -preset ultrafast -g {SegmentDuration} " + // GOP aligned to segment duration
+            //                    $"-c:v libx264 -preset ultrafast -g {SegmentDuration} -output_ts_offset {startTime} " + // GOP aligned to segment duration
             //                    $"-c:a aac -b:a 128k -ac 2 " + // Audio encoding
             //                    $"-force_key_frames \"expr:gte(t,{startTime})\" " +     // Force keyframe at segment start
             //                    $"-f mpegts -t {SegmentDuration} -bufsize 1000k -threads 4 pipe:1"; // Ensure buffer size is sufficient
@@ -232,7 +235,7 @@ namespace FileUploader.Controllers
             //string segmentCommand = $"-i \"{videoPath}\" " + // Input file
             //                    $"-ss {startTime} " + // Precise seeking AFTER input to maintain sync
             //                    $"-vf scale={resolution} " + // Video scaling
-            //                    $"-c:v libx264 -preset ultrafast -g {SegmentDuration * 2} " + // GOP size aligned with segment duration
+            //                    $"-c:v libx264 -preset ultrafast -g {SegmentDuration * 2} -output_ts_offset {startTime} " + // GOP size aligned with segment duration
             //                    $"-force_key_frames \"expr:gte(t,{startTime})\" " + // Ensure keyframe at start of each segment
             //                    $"-c:a aac -strict experimental -b:a 128k -ac 2 " + // Audio encoding with proper sync
             //                    $"-bufsize 5000k " + // Increase buffer size to handle real-time streaming
@@ -245,7 +248,7 @@ namespace FileUploader.Controllers
             //                    $"-copyts " + // Copy timestamps to avoid timing gaps
             //                    $"-avoid_negative_ts make_zero " + // Avoid small negative timestamps that cause timing errors
             //                    $"-vf scale={resolution} " + // Video scaling
-            //                    $"-c:v libx264 -preset fast -g {SegmentDuration * 2} " + // GOP size aligned with segment duration
+            //                    $"-c:v libx264 -preset fast -g {SegmentDuration * 2} -output_ts_offset {startTime} " + // GOP size aligned with segment duration
             //                    $"-force_key_frames \"expr:gte(t,{startTime})\" " + // Ensure keyframe at start of each segment
             //                    $"-c:a aac -strict experimental -b:a 128k -ac 2 " + // Audio encoding with proper sync
             //                    $"-f mpegts -t {SegmentDuration} pipe:1"; // Output format and segment duration
