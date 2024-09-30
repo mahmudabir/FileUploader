@@ -2,14 +2,10 @@
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.VisualBasic;
 
 using System.Diagnostics;
-using System.IO;
 using System.Text;
 using System.Text.Json;
-
-using static System.Net.WebRequestMethods;
 
 namespace FileUploader.Controllers
 {
@@ -17,7 +13,7 @@ namespace FileUploader.Controllers
     [ApiController]
     public class StreamingController : ControllerBase
     {
-        private readonly string videoPath = Path.Combine(Directory.GetCurrentDirectory(), "..\\Uploads", "input.mp4");
+        private readonly string videoPath = Path.Combine(Directory.GetCurrentDirectory(), "..\\Uploads");
         private readonly string ffmpegPath = "ffmpeg.exe"; // Path to your FFmpeg executable
         private const double SegmentDuration = 10; // Segment duration in seconds
 
@@ -28,99 +24,33 @@ namespace FileUploader.Controllers
             _cache = cache;
         }
 
-        // Extract video duration using FFprob
-        private VideoData? GetVideoDetails(string videoPath)
+        [HttpGet("clear-cache")]
+        public IActionResult ClearAllCache()
         {
-            VideoData? videoData = null;
-
-            var processStartInfo = new ProcessStartInfo
+            if (_cache is MemoryCache cache)
             {
-                FileName = "ffprobe.exe",
-                Arguments = $"-v error -select_streams v:0 -show_entries stream=width,height -of json {videoPath}",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using (var process = Process.Start(processStartInfo))
-            using (var reader = process.StandardOutput)
-            {
-                var output = reader.ReadToEnd();
-                VideoDetails? videoDetails = JsonSerializer.Deserialize<VideoDetails>(output);
-
-                videoData = videoDetails?.streams.FirstOrDefault();
+                cache.Clear();
             }
-
-            processStartInfo = new ProcessStartInfo
-            {
-                FileName = "ffprobe.exe",
-                Arguments = $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {videoPath}",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using (var process = Process.Start(processStartInfo))
-            using (var reader = process.StandardOutput)
-            {
-                var output = reader.ReadToEnd();
-
-                if (videoData != null)
-                {
-                    videoData.duration = output;
-                }
-            }
-
-            //ffprobe - select_streams v - show_frames - show_entries frame = pkt_pts_time,key_frame - of json input.mp4
-
-            processStartInfo = new ProcessStartInfo
-            {
-                FileName = "ffprobe.exe",
-                Arguments = $"-v 0 -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 {videoPath}",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using (var process = Process.Start(processStartInfo))
-            using (var reader = process.StandardOutput)
-            {
-                var output = reader.ReadToEnd();
-
-                if (videoData != null)
-                {
-                    videoData.fps = output.Split('/')[0];
-                }
-            }
-
-            return videoData;
-        }
-
-        private double GetVideoDuration()
-        {
-            if (double.TryParse(GetVideoDetails(videoPath)?.duration, out double value))
-            {
-                return value;
-            }
-
-            return double.MinValue;
+            return Ok();
         }
 
         // Serve the master playlist with different quality levels
         [HttpGet("master.m3u8")]
-        public IActionResult GetMasterPlaylist()
+        public IActionResult GetMasterPlaylist([FromQuery] string file)
         {
             string _apiBaseUrl = $"{Request.Scheme}://{Request.Host}";
 
+            var encodedFileName = Convert.ToBase64String(Encoding.UTF8.GetBytes(file));
+
             var masterPlaylist = "#EXTM3U\n\n" +
                                     "#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=360x640\n" +
-                                    $"{_apiBaseUrl}/api/streaming/360p.m3u8\n\n" +
+                                    $"{_apiBaseUrl}/api/streaming/{encodedFileName}/360p.m3u8\n\n" +
                                     "#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=480x854\n" +
-                                    $"{_apiBaseUrl}/api/streaming/480p.m3u8\n\n" +
+                                    $"{_apiBaseUrl}/api/streaming/{encodedFileName}/480p.m3u8\n\n" +
                                     "#EXT-X-STREAM-INF:BANDWIDTH=1400000,RESOLUTION=720x1280\n" +
-                                    $"{_apiBaseUrl}/api/streaming/720p.m3u8\n\n" +
+                                    $"{_apiBaseUrl}/api/streaming/{encodedFileName}/720p.m3u8\n\n" +
                                     "#EXT-X-STREAM-INF:BANDWIDTH=2800000,RESOLUTION=1080x1920\n" +
-                                    $"{_apiBaseUrl}/api/streaming/1080p.m3u8\n\n";
+                                    $"{_apiBaseUrl}/api/streaming/{encodedFileName}/1080p.m3u8\n\n";
 
             System.IO.File.WriteAllText($"master.m3u8", masterPlaylist);
 
@@ -129,10 +59,14 @@ namespace FileUploader.Controllers
         }
 
         // Serve dynamic playlist based on video duration and resolution
-        [HttpGet("{quality}.m3u8")]
-        public IActionResult GetQualityPlaylist(string quality)
+        [HttpGet("{encodedFileName}/{quality}.m3u8")]
+        public async Task<IActionResult> GetQualityPlaylist([FromRoute] string quality, [FromRoute] string encodedFileName)
         {
-            double videoDuration = GetVideoDuration();
+            byte[] decodedBytes = Convert.FromBase64String(encodedFileName);
+            string decodedString = Encoding.UTF8.GetString(decodedBytes);
+            var filePath = Path.Combine(videoPath, decodedString);
+
+            double videoDuration = await GetVideoDuration(filePath);
             int totalSegments = (int)Math.Floor(videoDuration / SegmentDuration);
 
             double decimalSegmentDuration = videoDuration % SegmentDuration;
@@ -144,7 +78,7 @@ namespace FileUploader.Controllers
                            $"#EXT-X-TARGETDURATION:{SegmentDuration}\n" +
                            "#EXT-X-PLAYLIST-TYPE:VOD\n" +  // <--- Add this line
                            "#EXT-X-MEDIA-SEQUENCE:0\n" +
-                                                       //"#EXT-X-PLAYLIST-TYPE:VOD\n" +
+            //"#EXT-X-PLAYLIST-TYPE:VOD\n" +
             "#EXT-X-INDEPENDENT-SEGMENTS\n";
 
             for (int i = 0; i < totalSegments; i++)
@@ -152,13 +86,13 @@ namespace FileUploader.Controllers
                 var videoIndex = i.ToString().PadLeft(totalSegments.ToString().Count(), '0');
 
                 playlist += $"#EXTINF:{SegmentDuration}.000000,\n" +
-                            $"{_apiBaseUrl}/api/streaming/segment/{quality}_{videoIndex}.ts\n";
+                            $"{_apiBaseUrl}/api/streaming/segment/{encodedFileName}/{quality}_{videoIndex}.ts\n";
             }
 
             if (decimalSegmentDuration > 0)
             {
                 playlist += $"#EXTINF:{Math.Round(decimalSegmentDuration, 6)},\n" +
-                            $"{_apiBaseUrl}/api/streaming/segment/{quality}_{totalSegments}.ts\n";
+                            $"{_apiBaseUrl}/api/streaming/segment/{encodedFileName}/{quality}_{totalSegments}.ts\n";
             }
 
             playlist += "#EXT-X-ENDLIST\n";
@@ -173,9 +107,13 @@ namespace FileUploader.Controllers
         }
 
         // Serve video segments on-demand for any resolution
-        [HttpGet("segment/{quality}_{index}.ts")]
-        public async Task<IActionResult> GetVideoSegment(string quality, int index)
+        [HttpGet("segment/{encodedFileName}/{quality}_{index}.ts")]
+        public async Task<IActionResult> GetVideoSegment(string quality, int index, string encodedFileName)
         {
+            byte[] decodedBytes = Convert.FromBase64String(encodedFileName);
+            string decodedString = Encoding.UTF8.GetString(decodedBytes);
+            var filePath = Path.Combine(videoPath, decodedString);
+
             string resolution = quality switch
             {
                 "360p" => "640:360",
@@ -186,16 +124,16 @@ namespace FileUploader.Controllers
             };
 
             // Cache key for the specific segment
-            string cacheKey = $"{resolution}_{index}";
+            string cacheKey = $"{resolution}_{index}_{encodedFileName}";
 
             if (_cache.TryGetValue(cacheKey, out byte[] cachedSegment))
             {
                 return File(cachedSegment, "video/mp2t");
             }
 
-            var videoData = GetVideoDetails(videoPath);
+            var videoData = await GetVideoDetails(filePath);
             double fps = int.Parse(videoData.fps);
-            double videoDuration = GetVideoDuration();
+            double videoDuration = Convert.ToDouble(videoData.duration);
 
             /*
             //var segmentCommand = $"-i {videoPath} -vf scale={resolution} " +
@@ -216,10 +154,10 @@ namespace FileUploader.Controllers
             double startTime = index * SegmentDuration;
 
             // Use `-ss` for precise seeking to a specific segment and align with keyframes
-            string segmentCommand = $"-ss {startTime} -i \"{videoPath}\" -vf scale={resolution} " +
-                                $"-c:v h264 -preset ultrafast " + // Video encoding
+            string segmentCommand = $"-ss {startTime} -i \"{filePath}\" -vf scale={resolution} " +
+                                $"-c:v h264 -preset ultrafast " + // Video encoding libx264, h264
                                 $"-c:a aac -b:a 128k -ac 2 " + // Audio encoding
-                                //$"-g {SegmentDuration * 2} " + // Keyframe interval set to match segment duration
+                                                               //$"-g {SegmentDuration * 2} " + // Keyframe interval set to match segment duration
                                 $" -output_ts_offset {startTime} -threads 4 " +
                                 $"-f mpegts -t {SegmentDuration} pipe:1";
 
@@ -283,5 +221,136 @@ namespace FileUploader.Controllers
             }
 
         }
+
+
+        // Extract video duration using FFprob
+        private async Task<VideoData> GetVideoDetails(string videoPath)
+        {
+            VideoData? videoData = null;
+
+            var processStartInfo = new ProcessStartInfo
+            {
+                FileName = "ffprobe.exe",
+                Arguments = $"-v error -select_streams v:0 -show_entries stream=width,height -of json \"{videoPath}\"",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using (var process = Process.Start(processStartInfo))
+            using (var reader = process.StandardOutput)
+            {
+                var output = reader.ReadToEnd();
+                VideoDetails? videoDetails = JsonSerializer.Deserialize<VideoDetails>(output);
+
+                videoData = videoDetails?.streams.FirstOrDefault();
+            }
+
+            //var output = await RunCommandAsync("ffprobe.exe", $"-v error -select_streams v:0 -show_entries stream=width,height -of json \"{videoPath}\"");
+            //if (output != null)
+            //{
+            //    VideoDetails? videoDetails = JsonSerializer.Deserialize<VideoDetails>(output);
+
+            //    videoData = videoDetails?.streams.FirstOrDefault();
+
+            //}
+
+            processStartInfo = new ProcessStartInfo
+            {
+                FileName = "ffprobe.exe",
+                Arguments = $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{videoPath}\"",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using (var process = Process.Start(processStartInfo))
+            using (var reader = process.StandardOutput)
+            {
+                var output = reader.ReadToEnd();
+
+                if (videoData != null)
+                {
+                    videoData.duration = output;
+                }
+            }
+
+            //output = await RunCommandAsync("ffprobe.exe", $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{videoPath}\"");
+            //if (output != null)
+            //{
+            //    videoData.duration = output;
+            //}
+
+            processStartInfo = new ProcessStartInfo
+            {
+                FileName = "ffprobe.exe",
+                Arguments = $"-v 0 -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 \"{videoPath}\"",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using (var process = Process.Start(processStartInfo))
+            using (var reader = process.StandardOutput)
+            {
+                var output = reader.ReadToEnd();
+
+                if (videoData != null)
+                {
+                    videoData.fps = output.Split('/')[0];
+                }
+            }
+
+            //output = await RunCommandAsync("ffprobe.exe", $"-v 0 -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 \"{videoPath}\"");
+            //if (output != null)
+            //{
+            //    videoData.fps = output.Split('/')[0];
+            //}
+
+            return videoData;
+        }
+
+        private async Task<double> GetVideoDuration(string filePath)
+        {
+            if (double.TryParse((await GetVideoDetails(filePath))?.duration, out double value))
+            {
+                return value;
+            }
+
+            return double.MinValue;
+        }
+
+
+        private async Task<string> RunCommandAsync(string command, string args)
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = command,
+                Arguments = args,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using (var process = new Process { StartInfo = startInfo })
+            {
+                process.Start();
+
+                // Optionally read the output (stdout and stderr)
+                string output = await process.StandardOutput.ReadToEndAsync();
+                string error = await process.StandardError.ReadToEndAsync();
+                await process.WaitForExitAsync();
+
+                return output;
+
+                if (process.ExitCode != 0)
+                {
+                    throw new Exception($"FFmpeg error: {error}");
+                }
+            }
+        }
+
+
     }
 }

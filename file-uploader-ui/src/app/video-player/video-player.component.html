@@ -1,5 +1,18 @@
-<div style="height: 360px; width: 640px;">
+
+<table style="width:100%;">
+    <tr>
+        <th>File Name</th>
+        <th>Play Video</th>
+    </tr>
+    <tr *ngFor="let file of files">
+        <td>{{ file }}</td>
+        <td><button (click)="play(file)">Play</button></td>
+    </tr>
+</table>
+
+
+<div style="height: 360px; width: 640px;" *ngIf="showPlayer">
     <video id="videoElement" class="video-js" controls>
-        <source src="https://localhost:7001/api/Streaming/master.m3u8" type="application/x-mpegURL" />
+        <source src="{{this.masterPlaylist}}" type="application/x-mpegURL" />
     </video>
 </div>

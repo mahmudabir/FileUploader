@@ -7,7 +7,6 @@ using System.Text;
 public class HlsController : ControllerBase
 {
     private readonly string _videoPath = Path.Combine(Directory.GetCurrentDirectory(), "..\\Uploads");
-    private readonly int _chunkSize = 10 * 1024 * 1024; // 10 MB
 
     [HttpGet("master")]
     public IActionResult GetMasterPlaylist()
