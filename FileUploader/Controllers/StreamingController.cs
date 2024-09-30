@@ -220,7 +220,7 @@ namespace FileUploader.Controllers
                                 $"-c:v h264 -preset ultrafast " + // Video encoding
                                 $"-c:a aac -b:a 128k -ac 2 " + // Audio encoding
                                 //$"-g {SegmentDuration * 2} " + // Keyframe interval set to match segment duration
-                                $" -output_ts_offset {startTime} " +
+                                $" -output_ts_offset {startTime} -threads 4 " +
                                 $"-f mpegts -t {SegmentDuration} pipe:1";
 
 
