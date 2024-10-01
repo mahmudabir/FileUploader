@@ -1,0 +1,18 @@
+<div style="display: flex; justify-content: space-between; overflow: hidden;">
+    <div style="width: 70%;">
+        <app-video-player #videoPlayer *ngIf="showPlayer" [url]="videoUrl" [options]=""></app-video-player>
+    </div>
+    <table style="width: 30%;">
+        <tr>
+            <th>File Name</th>
+            <th>Play Video</th>
+        </tr>
+        <tr *ngFor="let file of files">
+            <td>{{ file }}</td>
+            <td><button (click)="play(file)">Play</button></td>
+        </tr>
+    </table>
+</div>
+
+
+

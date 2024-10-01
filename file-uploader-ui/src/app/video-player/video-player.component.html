@@ -1,18 +1,4 @@
-
-<table style="width:100%;">
-    <tr>
-        <th>File Name</th>
-        <th>Play Video</th>
-    </tr>
-    <tr *ngFor="let file of files">
-        <td>{{ file }}</td>
-        <td><button (click)="play(file)">Play</button></td>
-    </tr>
-</table>
-
-
-<div style="height: 360px; width: 640px;" *ngIf="showPlayer">
-    <video id="videoElement" class="video-js" controls>
-        <source src="{{this.masterPlaylist}}" type="application/x-mpegURL" />
-    </video>
-</div>
+<video id="videoElement" class="video-js" controls>
+    <source src="{{masterPlaylist}}" type="application/x-mpegURL" />
+    <!-- <source src="{{url}}" type="application/x-mpegURL" /> -->
+</video>
