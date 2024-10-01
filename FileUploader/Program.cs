@@ -9,6 +9,8 @@ namespace FileUploader
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            builder.WebHost.UseUrls("https://0.0.0.0:7001");
+
             // Add services to the container.
 
             builder.Services.AddControllers();
@@ -22,16 +24,6 @@ namespace FileUploader
             });
 
             builder.Services.AddMemoryCache();
-
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("CorsPolicy", policy =>
-                {
-                    policy.AllowAnyHeader()
-                            .AllowAnyOrigin()
-                            .AllowAnyMethod();
-                });
-            });
 
             var app = builder.Build();
 
@@ -49,7 +41,10 @@ namespace FileUploader
             // Enable static file serving
             app.UseStaticFiles();
 
-            app.UseCors("CorsPolicy");
+            app.UseCors(x => x
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
 
             app.UseRouting();
             app.MapControllers();
