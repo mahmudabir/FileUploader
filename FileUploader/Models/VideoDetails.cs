@@ -13,6 +13,26 @@
         public int height { get; set; }
         public string duration { get; set; }
         public string fps { get; set; }
+
+        public double GetDurationInSeconds()
+        {
+            if (double.TryParse(duration, out double value))
+            {
+                return value;
+            }
+
+            return double.MinValue;
+        }
+
+        public int GetFps()
+        {
+            if (int.TryParse(fps, out int value))
+            {
+                return value;
+            }
+
+            return int.MinValue;
+        }
     }
 
 
