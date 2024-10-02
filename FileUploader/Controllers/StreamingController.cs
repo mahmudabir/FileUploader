@@ -70,19 +70,8 @@ namespace FileUploader.Controllers
         public async Task<IActionResult> GetVideoSegment(string quality, int index, string encodedFileName)
         {
             string decodedString = DecodeString(encodedFileName);
-            var videoFilePath = GetFullVideoPath(decodedString);
-            string videoDataCacheKey = $"{encodedFileName}_details";
-            VideoData videoData = null;
-
-            if (_cache.TryGetValue(videoDataCacheKey, out string cachedValue))
-            {
-                videoData = JsonSerializer.Deserialize<VideoData>(cachedValue);
-            }
-            else
-            {
-                videoData = await GetVideoDetails(videoFilePath);
-                _cache.Set(videoDataCacheKey, JsonSerializer.Serialize(videoData), _cacheEntryOptions);
-            }
+            string videoFilePath = GetFullVideoPath(decodedString);
+            VideoData videoData = await GetVideoDetails(decodedString);
 
             var threadCount = "4";
             var videoCodec = "libx264"; // Default Video encoding: libx264 (Another optino h264)
@@ -176,14 +165,24 @@ namespace FileUploader.Controllers
         }
 
         // Extract video duration using FFprob
-        private async Task<VideoData> GetVideoDetails(string videoPath)
+        private async Task<VideoData> GetVideoDetails(string fileName)
         {
+            var encodedFileName = EncodeString(fileName);
+            string fullVideoFilePath = GetFullVideoPath(fileName);
+
+            string videoDataCacheKey = $"{encodedFileName}_details";
             VideoData? videoData = null;
+
+            if (_cache.TryGetValue(videoDataCacheKey, out string cachedValue))
+            {
+                videoData = JsonSerializer.Deserialize<VideoData>(cachedValue);
+                return videoData;
+            }
 
             var processStartInfo = new ProcessStartInfo
             {
                 FileName = ffprobePath,
-                Arguments = $"-v error -select_streams v:0 -show_entries stream=width,height -of json \"{videoPath}\"",
+                Arguments = $"-v error -select_streams v:0 -show_entries stream=width,height -of json \"{fullVideoFilePath}\"",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
@@ -198,7 +197,7 @@ namespace FileUploader.Controllers
                 videoData = videoDetails?.streams.FirstOrDefault();
             }
 
-            //var output = await RunCommandAsync(ffprobePath, $"-v error -select_streams v:0 -show_entries stream=width,height -of json \"{videoPath}\"");
+            //var output = await RunCommandAsync(ffprobePath, $"-v error -select_streams v:0 -show_entries stream=width,height -of json \"{fullVideoFilePath}\"");
             //if (output != null)
             //{
             //    VideoDetails? videoDetails = JsonSerializer.Deserialize<VideoDetails>(output);
@@ -210,7 +209,7 @@ namespace FileUploader.Controllers
             processStartInfo = new ProcessStartInfo
             {
                 FileName = ffprobePath,
-                Arguments = $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{videoPath}\"",
+                Arguments = $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{fullVideoFilePath}\"",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
@@ -227,7 +226,7 @@ namespace FileUploader.Controllers
                 }
             }
 
-            //output = await RunCommandAsync(ffprobePath, $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{videoPath}\"");
+            //output = await RunCommandAsync(ffprobePath, $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{fullVideoFilePath}\"");
             //if (output != null)
             //{
             //    videoData.duration = output;
@@ -236,7 +235,7 @@ namespace FileUploader.Controllers
             processStartInfo = new ProcessStartInfo
             {
                 FileName = ffprobePath,
-                Arguments = $"-v 0 -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 \"{videoPath}\"",
+                Arguments = $"-v 0 -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 \"{fullVideoFilePath}\"",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
@@ -255,11 +254,14 @@ namespace FileUploader.Controllers
                 }
             }
 
-            //output = await RunCommandAsync(ffprobePath, $"-v 0 -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 \"{videoPath}\"");
+            //output = await RunCommandAsync(ffprobePath, $"-v 0 -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 \"{fullVideoFilePath}\"");
             //if (output != null)
             //{
             //    videoData.fps = output.Split('/')[0];
             //}
+
+
+            _cache.Set(videoDataCacheKey, JsonSerializer.Serialize(videoData), _cacheEntryOptions);
 
             return videoData;
         }
@@ -299,22 +301,8 @@ namespace FileUploader.Controllers
             string _apiBaseUrl = $"{Request.Scheme}://{Request.Host}";
             var playlistPathPrefix = $"{_apiBaseUrl}/api/streaming";
 
+            VideoData videoData = await GetVideoDetails(file);
             var encodedFileName = EncodeString(file);
-
-            string cacheKey = $"{encodedFileName}_details";
-
-            VideoData videoData = null;
-
-            if (_cache.TryGetValue(cacheKey, out string cachedValue))
-            {
-                videoData = JsonSerializer.Deserialize<VideoData>(cachedValue);
-            }
-            else
-            {
-                var videoFilePath = GetFullVideoPath(file);
-                videoData = await GetVideoDetails(videoFilePath);
-                _cache.Set(cacheKey, JsonSerializer.Serialize(videoData), _cacheEntryOptions);
-            }
 
             var qualityLevels = new List<(int bandwidth, string resolution, int height, int width)>
             {
@@ -350,24 +338,11 @@ namespace FileUploader.Controllers
             var playlistPathPrefix = $"{_apiBaseUrl}/api/streaming";
 
             string decodedString = DecodeString(encodedFileName);
-            var videoFilePath = GetFullVideoPath(decodedString);
-
-            string cacheKey = $"{encodedFileName}_details";
-            VideoData videoData = null;
-
-            if (_cache.TryGetValue(cacheKey, out string cachedValue))
-            {
-                videoData = JsonSerializer.Deserialize<VideoData>(cachedValue);
-            }
-            else
-            {
-                videoData = await GetVideoDetails(videoFilePath);
-                _cache.Set(cacheKey, JsonSerializer.Serialize(videoData), _cacheEntryOptions);
-            }
+            VideoData videoData = await GetVideoDetails(decodedString);
 
             double videoDuration = videoData.GetDurationInSeconds();
-            int totalSegments = (int)Math.Floor(videoDuration / SegmentDuration);
-            double decimalSegmentDuration = videoDuration % SegmentDuration;
+            int totalSegmentsRounded = (int)Math.Floor(videoDuration / SegmentDuration);
+            double segmentDurationMod = videoDuration % SegmentDuration;
 
             var playlist = "#EXTM3U\n" +
                            "#EXT-X-VERSION:6\n" +
@@ -376,18 +351,18 @@ namespace FileUploader.Controllers
                            "#EXT-X-MEDIA-SEQUENCE:0\n" +
                            "#EXT-X-INDEPENDENT-SEGMENTS\n";
 
-            for (int i = 0; i < totalSegments; i++)
+            for (int i = 0; i < totalSegmentsRounded; i++)
             {
-                var videoIndex = i.ToString().PadLeft(totalSegments.ToString().Count(), '0');
+                var videoIndex = i.ToString().PadLeft(totalSegmentsRounded.ToString().Count(), '0');
 
                 playlist += $"#EXTINF:{SegmentDuration}.000000,\n" +
                             $"segment/{quality}_{videoIndex}.ts\n";
             }
 
-            if (decimalSegmentDuration > 0)
+            if (segmentDurationMod > 0)
             {
-                playlist += $"#EXTINF:{Math.Round(decimalSegmentDuration, 6)},\n" +
-                            $"segment/{quality}_{totalSegments}.ts\n";
+                playlist += $"#EXTINF:{Math.Round(segmentDurationMod, 6)},\n" +
+                            $"segment/{quality}_{totalSegmentsRounded}.ts\n";
             }
 
             playlist += "#EXT-X-ENDLIST\n";
