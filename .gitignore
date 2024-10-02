@@ -370,3 +370,4 @@ package-lock.json
 Uploads/
 *.exe
 *.m3u8
+*.txt

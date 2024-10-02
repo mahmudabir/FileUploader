@@ -73,31 +73,33 @@ namespace FileUploader.Controllers
             string videoFilePath = GetFullVideoPath(decodedString);
             VideoData videoData = await GetVideoDetails(decodedString);
 
-            var threadCount = "4";
-            var videoCodec = "libx264"; // Default Video encoding: libx264 (Another optino h264)
-            var audioCodec = "aac"; // Default Audio encoding aac
+            var defaultPreset = "ultrafast"; // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
+            var defaultThreadCount = "8";
+            var defaultVideoCodec = "h264"; // Default Video encoding: libx264 (Another option h264)
+            var defaultAudioCodec = "aac"; // Default Audio encoding aac
             var defaultFrameRate = "30"; // Default Frame Rate
-            var audioChannel = "2"; // Default Audio Channel
+            int defaultAudioChannel = 2; // Default Audio Channel
 
-            var videoFrameRate = videoData?.fps ?? defaultFrameRate;
+            var videoFrameRate = videoData?.FrameRate ?? defaultFrameRate;
 
-            (string Resolution, string VideoBitrate, string VideoCodec, string FrameRate, string AudioBitrate, string AudioCodec, string AudioSampleRate, string AudioChannel, string Preset) config = quality
-            switch
+            VideoStreamingConfiguration defaultConfig = videoData.ToVideoStreamingConfiguration();
+
+            VideoStreamingConfiguration config = quality switch
             {
-                "144p" => ("256:144", "300k", videoCodec, defaultFrameRate, "64k", audioCodec, "44100", audioChannel, "ultrafast"),
-                "240p" => ("426:240", "500k", videoCodec, defaultFrameRate, "96k", audioCodec, "44100", audioChannel, "ultrafast"),
-                "360p" => ("640:360", "800k", videoCodec, defaultFrameRate, "128k", audioCodec, "48000", audioChannel, "ultrafast"),
-                "480p" => ("854:480", "1200k", videoCodec, defaultFrameRate, "128k", audioCodec, "48000", audioChannel, "ultrafast"),
-                "720p" => ("1280:720", "2500k", videoCodec, videoFrameRate, "160k", audioCodec, "48000", audioChannel, "ultrafast"),
-                "1080p" => ("1920:1080", "4500k", videoCodec, videoFrameRate, "192k", audioCodec, "48000", audioChannel, "ultrafast"),
-                "2k" => ("2560:1440", "8000k", videoCodec, videoFrameRate, "192k", audioCodec, "48000", audioChannel, "ultrafast"),
-                "4k" => ("3840:2160", "20000k", videoCodec, videoFrameRate, "256k", audioCodec, "48000", audioChannel, "ultrafast"),
-                "8k" => ("7680:4320", "40000k", videoCodec, videoFrameRate, "320k", audioCodec, "48000", audioChannel, "ultrafast"),
-                _ => ("640:360", "800k", videoCodec, defaultFrameRate, "128k", audioCodec, "48000", audioChannel, "ultrafast"),
+                "144p" => new VideoStreamingConfiguration("256:144", 0, "300k", defaultVideoCodec, defaultFrameRate, "64k", defaultAudioCodec, "44100", defaultAudioChannel, defaultPreset),
+                "240p" => new VideoStreamingConfiguration("426:240", 0, "500k", defaultVideoCodec, defaultFrameRate, "96k", defaultAudioCodec, "44100", defaultAudioChannel, defaultPreset),
+                "360p" => new VideoStreamingConfiguration("640:360", 0, "800k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
+                "480p" => new VideoStreamingConfiguration("854:480", 0, "1200k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
+                "720p" => new VideoStreamingConfiguration("1280:720", 0, "2500k", defaultVideoCodec, videoFrameRate, "160k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
+                "1080p" => new VideoStreamingConfiguration("1920:1080", 0, "4500k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
+                "2k" => new VideoStreamingConfiguration("2560:1440", 0, "8000k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
+                "4k" => new VideoStreamingConfiguration("3840:2160", 0, "20000k", defaultVideoCodec, videoFrameRate, "256k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
+                "8k" => new VideoStreamingConfiguration("7680:4320", 0, "40000k", defaultVideoCodec, videoFrameRate, "320k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
+                _ => defaultConfig,
             };
 
             // Cache key for the specific segment
-            string cacheKey = $"{config.Resolution}_{config.VideoBitrate}_{index}_{encodedFileName}";
+            string cacheKey = $"{config.Resolution}_{config.VideoBitRate}_{index}_{encodedFileName}";
 
             if (_cache.TryGetValue(cacheKey, out byte[] cachedSegment))
             {
@@ -107,11 +109,10 @@ namespace FileUploader.Controllers
             double startTime = index * SegmentDuration;
 
             string segmentCommand = $"-ss {startTime} -i \"{videoFilePath}\" -vf scale={config.Resolution} -r {config.FrameRate} " +
-                                $"-c:v {config.VideoCodec} -b:v {config.VideoBitrate} " +
-                                $"-c:a {config.AudioCodec} -b:a {config.AudioBitrate} -ar {config.AudioSampleRate} -ac {config.AudioChannel} " +
-                                $"-preset {config.Preset} " +
-                                $"-g {SegmentDuration * 2} " + // Keyframe interval set to match segment duration
-                                $" -output_ts_offset {startTime} -threads {threadCount} " +
+                                $"-c:v {config.VideoCodec} -b:v {config.VideoBitRate} " +
+                                $"-c:a {config.AudioCodec} -b:a {config.AudioBitRate} -ar {config.AudioSampleRate} -ac {config.AudioChannels} " +
+                                $"-preset {config.Preset} " + //$"-g {SegmentDuration * 2} " + // Frame Skip to match with audio
+                                $" -output_ts_offset {startTime} -threads {defaultThreadCount} " +
                                 $"-f mpegts -t {SegmentDuration} pipe:1";
 
             System.IO.File.WriteAllText("ffmpeg.txt", "ffmpeg " + segmentCommand);
@@ -164,7 +165,7 @@ namespace FileUploader.Controllers
             return Encoding.UTF8.GetString(Convert.FromBase64String(value));
         }
 
-        // Extract video duration using FFprob
+        // Extract video details using FFprob
         private async Task<VideoData> GetVideoDetails(string fileName)
         {
             var encodedFileName = EncodeString(fileName);
@@ -173,12 +174,40 @@ namespace FileUploader.Controllers
             string videoDataCacheKey = $"{encodedFileName}_details";
             VideoData? videoData = null;
 
-            if (_cache.TryGetValue(videoDataCacheKey, out string cachedValue))
+            if (_cache.TryGetValue(videoDataCacheKey, out string? cachedValue))
             {
-                videoData = JsonSerializer.Deserialize<VideoData>(cachedValue);
-                return videoData;
+                videoData = JsonSerializer.Deserialize<VideoData>(cachedValue ?? "");
+            }
+            else
+            {
+                var detailsCommand = $"-v error -show_entries format=duration -show_entries stream=codec_type,codec_name,sample_rate,channels,bit_rate,width,height,r_frame_rate -of json \"{fullVideoFilePath}\"";
+
+                var processStartInfo = new ProcessStartInfo
+                {
+                    FileName = ffprobePath,
+                    Arguments = ,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                System.IO.File.WriteAllText("ffprobe.txt", "ffprobe " + detailsCommand);
+
+                using (var process = Process.Start(processStartInfo))
+                using (var reader = process.StandardOutput)
+                {
+                    var output = await reader.ReadToEndAsync();
+                    var videoDetails = JsonSerializer.Deserialize<VideoDetails>(output);
+
+                    videoData = videoDetails?.ToVideoData();
+                }
+
+                _cache.Set(videoDataCacheKey, JsonSerializer.Serialize(videoData), _cacheEntryOptions);
             }
 
+            return videoData;
+
+            /*
             var processStartInfo = new ProcessStartInfo
             {
                 FileName = ffprobePath,
@@ -259,11 +288,7 @@ namespace FileUploader.Controllers
             //{
             //    videoData.fps = output.Split('/')[0];
             //}
-
-
-            _cache.Set(videoDataCacheKey, JsonSerializer.Serialize(videoData), _cacheEntryOptions);
-
-            return videoData;
+            */
         }
 
         private async Task<string> RunCommandAsync(string command, string args)
@@ -322,7 +347,7 @@ namespace FileUploader.Controllers
             foreach (var (bandwidth, resolution, height, width) in qualityLevels)
             {
                 // Only include qualities that are smaller than or equal to the current video resolution
-                if (height <= videoData.height && width <= videoData.width)
+                if (height <= videoData.Height && width <= videoData.Width)
                 {
                     masterPlaylist += $"#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},RESOLUTION={height}x{width}\n";
                     masterPlaylist += $"{encodedFileName}/{resolution}.m3u8\n\n";
@@ -340,7 +365,7 @@ namespace FileUploader.Controllers
             string decodedString = DecodeString(encodedFileName);
             VideoData videoData = await GetVideoDetails(decodedString);
 
-            double videoDuration = videoData.GetDurationInSeconds();
+            double videoDuration = videoData.Duration;
             int totalSegmentsRounded = (int)Math.Floor(videoDuration / SegmentDuration);
             double segmentDurationMod = videoDuration % SegmentDuration;
 
