@@ -77,24 +77,23 @@ namespace FileUploader.Controllers
             var defaultThreadCount = "8";
             var defaultVideoCodec = "h264"; // Default Video encoding: libx264 (Another option h264)
             var defaultAudioCodec = "aac"; // Default Audio encoding aac
+            
             var defaultFrameRate = "30"; // Default Frame Rate
-            int defaultAudioChannel = 2; // Default Audio Channel
-
             var videoFrameRate = videoData?.FrameRate ?? defaultFrameRate;
 
             VideoStreamingConfiguration defaultConfig = videoData.ToVideoStreamingConfiguration();
 
             VideoStreamingConfiguration config = quality switch
             {
-                "144p" => new VideoStreamingConfiguration("256:144", 0, "300k", defaultVideoCodec, defaultFrameRate, "64k", defaultAudioCodec, "44100", defaultAudioChannel, defaultPreset),
-                "240p" => new VideoStreamingConfiguration("426:240", 0, "500k", defaultVideoCodec, defaultFrameRate, "96k", defaultAudioCodec, "44100", defaultAudioChannel, defaultPreset),
-                "360p" => new VideoStreamingConfiguration("640:360", 0, "800k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
-                "480p" => new VideoStreamingConfiguration("854:480", 0, "1200k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
-                "720p" => new VideoStreamingConfiguration("1280:720", 0, "2500k", defaultVideoCodec, videoFrameRate, "160k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
-                "1080p" => new VideoStreamingConfiguration("1920:1080", 0, "4500k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
-                "2k" => new VideoStreamingConfiguration("2560:1440", 0, "8000k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
-                "4k" => new VideoStreamingConfiguration("3840:2160", 0, "20000k", defaultVideoCodec, videoFrameRate, "256k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
-                "8k" => new VideoStreamingConfiguration("7680:4320", 0, "40000k", defaultVideoCodec, videoFrameRate, "320k", defaultAudioCodec, "48000", defaultAudioChannel, defaultPreset),
+                "144p" => new VideoStreamingConfiguration("256:144", 0, "300k", defaultVideoCodec, defaultFrameRate, "64k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
+                "240p" => new VideoStreamingConfiguration("426:240", 0, "500k", defaultVideoCodec, defaultFrameRate, "96k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
+                "360p" => new VideoStreamingConfiguration("640:360", 0, "800k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "480p" => new VideoStreamingConfiguration("854:480", 0, "1200k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "720p" => new VideoStreamingConfiguration("1280:720", 0, "2500k", defaultVideoCodec, videoFrameRate, "160k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "1080p" => new VideoStreamingConfiguration("1920:1080", 0, "4500k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "2k" => new VideoStreamingConfiguration("2560:1440", 0, "8000k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "4k" => new VideoStreamingConfiguration("3840:2160", 0, "20000k", defaultVideoCodec, videoFrameRate, "256k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "8k" => new VideoStreamingConfiguration("7680:4320", 0, "40000k", defaultVideoCodec, videoFrameRate, "320k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
                 _ => defaultConfig,
             };
 
@@ -145,9 +144,7 @@ namespace FileUploader.Controllers
                 }
 
                 return File(segmentData, "video/mp2t");
-                //return File(process.StandardOutput.BaseStream, "video/mp2t");
             }
-
         }
 
         private string GetFullVideoPath(string fileName)
@@ -185,7 +182,7 @@ namespace FileUploader.Controllers
                 var processStartInfo = new ProcessStartInfo
                 {
                     FileName = ffprobePath,
-                    Arguments = ,
+                    Arguments = detailsCommand,
                     RedirectStandardOutput = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
@@ -200,125 +197,18 @@ namespace FileUploader.Controllers
                     var videoDetails = JsonSerializer.Deserialize<VideoDetails>(output);
 
                     videoData = videoDetails?.ToVideoData();
+
+                    //// Optionally read the output (stdout and stderr)
+                    //string output = await process.StandardOutput.ReadToEndAsync();
+                    //string error = await process.StandardError.ReadToEndAsync();
+                    //await process.WaitForExitAsync();
+                    //return output;
                 }
 
                 _cache.Set(videoDataCacheKey, JsonSerializer.Serialize(videoData), _cacheEntryOptions);
             }
 
             return videoData;
-
-            /*
-            var processStartInfo = new ProcessStartInfo
-            {
-                FileName = ffprobePath,
-                Arguments = $"-v error -select_streams v:0 -show_entries stream=width,height -of json \"{fullVideoFilePath}\"",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using (var process = Process.Start(processStartInfo))
-            using (var reader = process.StandardOutput)
-            {
-                var output = reader.ReadToEnd();
-                VideoDetails? videoDetails = JsonSerializer.Deserialize<VideoDetails>(output);
-
-                videoData = videoDetails?.streams.FirstOrDefault();
-            }
-
-            //var output = await RunCommandAsync(ffprobePath, $"-v error -select_streams v:0 -show_entries stream=width,height -of json \"{fullVideoFilePath}\"");
-            //if (output != null)
-            //{
-            //    VideoDetails? videoDetails = JsonSerializer.Deserialize<VideoDetails>(output);
-
-            //    videoData = videoDetails?.streams.FirstOrDefault();
-
-            //}
-
-            processStartInfo = new ProcessStartInfo
-            {
-                FileName = ffprobePath,
-                Arguments = $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{fullVideoFilePath}\"",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using (var process = Process.Start(processStartInfo))
-            using (var reader = process.StandardOutput)
-            {
-                var output = reader.ReadToEnd();
-
-                if (videoData != null)
-                {
-                    videoData.duration = output;
-                }
-            }
-
-            //output = await RunCommandAsync(ffprobePath, $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{fullVideoFilePath}\"");
-            //if (output != null)
-            //{
-            //    videoData.duration = output;
-            //}
-
-            processStartInfo = new ProcessStartInfo
-            {
-                FileName = ffprobePath,
-                Arguments = $"-v 0 -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 \"{fullVideoFilePath}\"",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using (var process = Process.Start(processStartInfo))
-            using (var reader = process.StandardOutput)
-            {
-                var output = reader.ReadToEnd();
-
-                if (videoData != null)
-                {
-                    var numerator = output.Split('/')[0];
-                    var denominator = output.Split('/')[1];
-                    videoData.fps = (Convert.ToInt32(numerator) / Convert.ToInt32(denominator)).ToString();
-                }
-            }
-
-            //output = await RunCommandAsync(ffprobePath, $"-v 0 -select_streams v:0 -show_entries stream=r_frame_rate -of default=noprint_wrappers=1:nokey=1 \"{fullVideoFilePath}\"");
-            //if (output != null)
-            //{
-            //    videoData.fps = output.Split('/')[0];
-            //}
-            */
-        }
-
-        private async Task<string> RunCommandAsync(string command, string args)
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = command,
-                Arguments = args,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using (var process = new Process { StartInfo = startInfo })
-            {
-                process.Start();
-
-                // Optionally read the output (stdout and stderr)
-                string output = await process.StandardOutput.ReadToEndAsync();
-                string error = await process.StandardError.ReadToEndAsync();
-                await process.WaitForExitAsync();
-
-                return output;
-
-                if (process.ExitCode != 0)
-                {
-                    throw new Exception($"FFmpeg error: {error}");
-                }
-            }
         }
 
         private async Task<string> GenerateMasterPlaylist(string file)
