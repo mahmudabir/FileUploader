@@ -196,7 +196,7 @@ namespace FileUploader.Controllers
                 using (var reader = process.StandardOutput)
                 {
                     var output = await reader.ReadToEndAsync();
-                    var videoDetails = JsonSerializer.Deserialize<VideoDetails>(output);
+                    var videoDetails = JsonSerializer.Deserialize<VideoMetadata>(output);
 
                     videoData = videoDetails?.ToVideoData();
 

@@ -1,32 +1,24 @@
 ﻿namespace FileUploader.Models
 {
-    public class VideoDetails
-    {
-        public List<object> programs { get; set; }
-        public List<object> stream_groups { get; set; }
-        public List<VideoStreamData> streams { get; set; }
-        public VideoStreamDuration format { get; set; }
-    }
-
-    public class VideoStreamDuration
-    {
-        public string duration { get; set; }
-    }
-
-    public class VideoStreamData
-    {
-        public string? codec_type { get; set; } //video, audio, subtitle
-        public string? codec_name { get; set; } //h264, libx264, aac
-        public string? sample_rate { get; set; } //h264, libx264, aac
-        public int? channels { get; set; } //h264, libx264, aac
-        public long? width { get; set; }
-        public long? height { get; set; }
-        public string? r_frame_rate { get; set; }
-        public string? bit_rate { get; set; }
-    }
+    // More properties will be added later if needed
+    public record VideoStreamingConfiguration(
+        string Resolution,
+        double Duration,
+        string VideoBitRate,
+        string VideoCodec,
+        string FrameRate,
+        string AudioBitRate,
+        string AudioCodec,
+        string AudioSampleRate,
+        long? AudioChannels,
+        string Preset,
+        string? ResolutionName = "Default"
+        );
 
     public class VideoData
     {
+        // More properties will be added later if needed
+
         public long? Width { get; set; }
         public long? Height { get; set; }
 
@@ -39,12 +31,12 @@
         public string? AudioBitRate { get; set; }
         public string? AudioCodec { get; set; }
         public string? AudioSampleRate { get; set; }
-        public int? AudioChannels { get; set; }
+        public long? AudioChannels { get; set; }
     }
 
     public static class VideoExtensions
     {
-        public static VideoData ToVideoData(this VideoDetails videoStreamData)
+        public static VideoData ToVideoData(this VideoMetadata videoStreamData)
         {
             var videoDetailsData = videoStreamData.streams.FirstOrDefault(x => x.codec_type == "video");
             var audioDetailsData = videoStreamData.streams.FirstOrDefault(x => x.codec_type == "audio");
@@ -93,17 +85,4 @@
     }
 
 
-    public record VideoStreamingConfiguration(
-        string Resolution,
-        double Duration,
-        string VideoBitRate,
-        string VideoCodec,
-        string FrameRate,
-        string AudioBitRate,
-        string AudioCodec,
-        string AudioSampleRate,
-        int? AudioChannels,
-        string Preset,
-        string? ResolutionName = "Default"
-        );
 }
