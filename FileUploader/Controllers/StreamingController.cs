@@ -177,6 +177,8 @@ namespace FileUploader.Controllers
             }
             else
             {
+                //var detailsCommandToGetAllDetails = $"-v error -show_format -show_streams -of json  \"{fullVideoFilePath}\""; // Shows every metadata of the file
+
                 var detailsCommand = $"-v error -show_entries format=duration -show_entries stream=codec_type,codec_name,sample_rate,channels,bit_rate,width,height,r_frame_rate -of json \"{fullVideoFilePath}\"";
 
                 var processStartInfo = new ProcessStartInfo
