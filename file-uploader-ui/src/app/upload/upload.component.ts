@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClient, HttpEventType } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { Subject, Observable, of } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-upload',
@@ -14,6 +15,9 @@ import { Subject, Observable, of } from 'rxjs';
   changeDetection: ChangeDetectionStrategy.Default,
 })
 export class UploadComponent {
+
+  baseUrl = `${environment.apiBaseUrl}/api`;
+
   uploadProgress: number = 0;
   private chunkSize = 1024 * 1024 * 25; // 25MB
 
@@ -67,7 +71,7 @@ export class UploadComponent {
         formData.append('chunkNumber', chunkNumber.toString());
         formData.append('totalChunks', totalChunks.toString());
 
-        this.http.post(`https://localhost:7001/api/FileUpload/upload-${(isFullUpload ? 'full' : 'chunk')}`, formData, { reportProgress: true, observe: 'events' })
+        this.http.post(`${this.baseUrl}/FileUpload/upload-${(isFullUpload ? 'full' : 'chunk')}`, formData, { reportProgress: true, observe: 'events' })
           .subscribe({
             next: event => {
               if (event.type === HttpEventType.UploadProgress) {

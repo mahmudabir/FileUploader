@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { VideoPlayerComponent } from "../video-player/video-player.component";
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-video-stream',
@@ -15,7 +16,9 @@ import { VideoPlayerComponent } from "../video-player/video-player.component";
 ],
 })
 export class VideoStreamComponent implements OnInit {
-  baseUrl = 'https://localhost:7001/api';
+  
+  baseUrl = `${environment.apiBaseUrl}/api`;
+
   videoUrl: string;
   files: string[] = [];
   showPlayer = false;

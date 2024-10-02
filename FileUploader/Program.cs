@@ -9,7 +9,7 @@ namespace FileUploader
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            builder.WebHost.UseUrls("https://0.0.0.0:7001");
+            builder.WebHost.UseUrls("http://0.0.0.0:7001");
 
             // Add services to the container.
 

@@ -16,7 +16,7 @@ namespace FileUploader.Controllers
         private readonly string videoPath = Path.Combine(Directory.GetCurrentDirectory(), "..\\Uploads");
         private readonly string ffmpegPath = "ffmpeg.exe"; // Path to your FFmpeg executable
         private readonly string ffprobePath = "ffprobe.exe"; // Path to your FFprobe executable
-        private const double SegmentDuration = 15; // Segment duration in seconds
+        private const double SegmentDuration = 10; // Segment duration in seconds
 
         private readonly IMemoryCache _cache;
         private readonly MemoryCacheEntryOptions _cacheEntryOptions;
@@ -81,21 +81,42 @@ namespace FileUploader.Controllers
             var defaultFrameRate = "30"; // Default Frame Rate
             var videoFrameRate = videoData?.FrameRate ?? defaultFrameRate;
 
+            var isFpsMoreThan30 = Convert.ToDouble(videoFrameRate) > 30;
+
             VideoStreamingConfiguration defaultConfig = videoData.ToVideoStreamingConfiguration();
 
-            VideoStreamingConfiguration config = quality switch
+            // Standard by ChatGPT
+            //VideoStreamingConfiguration config = quality switch
+            //{
+            //    "144p" => new VideoStreamingConfiguration("256:144", 0, "300k", defaultVideoCodec, defaultFrameRate, "64k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
+            //    "240p" => new VideoStreamingConfiguration("426:240", 0, "500k", defaultVideoCodec, defaultFrameRate, "96k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
+            //    "360p" => new VideoStreamingConfiguration("640:360", 0, "800k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "480p" => new VideoStreamingConfiguration("854:480", 0, "1200k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "720p" => new VideoStreamingConfiguration("1280:720", 0, "2500k", defaultVideoCodec, videoFrameRate, "160k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "1080p" => new VideoStreamingConfiguration("1920:1080", 0, "4500k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "2k" => new VideoStreamingConfiguration("2560:1440", 0, "8000k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "4k" => new VideoStreamingConfiguration("3840:2160", 0, "20000k", defaultVideoCodec, videoFrameRate, "256k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "8k" => new VideoStreamingConfiguration("7680:4320", 0, "40000k", defaultVideoCodec, videoFrameRate, "320k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    _ => defaultConfig,
+            //};
+
+            //Youtube Recommendation: https://support.google.com/youtube/answer/1722171?hl=en#zippy=%2Cvideo-codec-h%2Caudio-codec-aac-lc%2Ccontainer-mp%2Cframe-rate%2Cbitrate
+
+            VideoStreamingConfiguration videoStreamingConfiguration = quality switch
             {
-                "144p" => new VideoStreamingConfiguration("256:144", 0, "300k", defaultVideoCodec, defaultFrameRate, "64k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
-                "240p" => new VideoStreamingConfiguration("426:240", 0, "500k", defaultVideoCodec, defaultFrameRate, "96k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
-                "360p" => new VideoStreamingConfiguration("640:360", 0, "800k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "480p" => new VideoStreamingConfiguration("854:480", 0, "1200k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "720p" => new VideoStreamingConfiguration("1280:720", 0, "2500k", defaultVideoCodec, videoFrameRate, "160k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "1080p" => new VideoStreamingConfiguration("1920:1080", 0, "4500k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "2k" => new VideoStreamingConfiguration("2560:1440", 0, "8000k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "4k" => new VideoStreamingConfiguration("3840:2160", 0, "20000k", defaultVideoCodec, videoFrameRate, "256k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "8k" => new VideoStreamingConfiguration("7680:4320", 0, "40000k", defaultVideoCodec, videoFrameRate, "320k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "144p" => new VideoStreamingConfiguration("256:144", defaultConfig.Duration, isFpsMoreThan30 ? "450K" : "450k", defaultVideoCodec, defaultFrameRate, "64k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
+                "240p" => new VideoStreamingConfiguration("426:240", defaultConfig.Duration, isFpsMoreThan30 ? "900K" : "900k", defaultVideoCodec, defaultFrameRate, "96k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
+                "360p" => new VideoStreamingConfiguration("640:360", defaultConfig.Duration, isFpsMoreThan30 ? "4M" : "2M", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "480p" => new VideoStreamingConfiguration("854:480", defaultConfig.Duration, isFpsMoreThan30 ? "8M" : "4M", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "720p" => new VideoStreamingConfiguration("1280:720", defaultConfig.Duration, isFpsMoreThan30 ? "16M" : "8M", defaultVideoCodec, videoFrameRate, "160k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "1080p" => new VideoStreamingConfiguration("1920:1080", defaultConfig.Duration, isFpsMoreThan30 ? "32M" : "16M", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "2k" => new VideoStreamingConfiguration("2560:1440", defaultConfig.Duration, isFpsMoreThan30 ? "64M" : "32M", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "4k" => new VideoStreamingConfiguration("3840:2160", defaultConfig.Duration, isFpsMoreThan30 ? "128M" : "64M", defaultVideoCodec, videoFrameRate, "256k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "8k" => new VideoStreamingConfiguration("7680:4320", defaultConfig.Duration, isFpsMoreThan30 ? "256M" : "128M", defaultVideoCodec, videoFrameRate, "320k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
                 _ => defaultConfig,
             };
+
+            VideoStreamingConfiguration config = videoStreamingConfiguration;
 
             // Cache key for the specific segment
             string cacheKey = $"{config.Resolution}_{config.VideoBitRate}_{index}_{encodedFileName}";
@@ -107,12 +128,17 @@ namespace FileUploader.Controllers
 
             double startTime = index * SegmentDuration;
 
-            string segmentCommand = $"-ss {startTime} -i \"{videoFilePath}\" -vf scale={config.Resolution} -r {config.FrameRate} " +
-                                $"-c:v {config.VideoCodec} -b:v {config.VideoBitRate} " +
-                                $"-c:a {config.AudioCodec} -b:a {config.AudioBitRate} -ar {config.AudioSampleRate} -ac {config.AudioChannels} " +
-                                $"-preset {config.Preset} " + //$"-g {SegmentDuration * 2} " + // Frame Skip to match with audio
-                                $" -output_ts_offset {startTime} -threads {defaultThreadCount} " +
-                                $"-f mpegts -t {SegmentDuration} pipe:1";
+            string segmentCommand = $"-i \"{videoFilePath}\" " +
+                                    $"-ss {startTime} " + // From Duration
+                                    $"-t {SegmentDuration}  " + // Till Duration
+                                    $"-vf scale={config.Resolution} -r {config.FrameRate} " +
+                                    $"-c:v {config.VideoCodec} -b:v {config.VideoBitRate} " +
+                                    $"-c:a {config.AudioCodec} -b:a {config.AudioBitRate} -ar {config.AudioSampleRate} -ac {config.AudioChannels} " +
+                                    $"-preset {config.Preset} " + //$"-g {SegmentDuration * 2} " + // Frame Skip to match with audio
+                                    $"-threads {defaultThreadCount}  " +
+                                    $" -output_ts_offset {startTime} " +
+                                    $"-f mpegts " +
+                                    $"pipe:1";
 
             System.IO.File.WriteAllText("ffmpeg.txt", "ffmpeg " + segmentCommand);
 

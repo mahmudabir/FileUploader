@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { Observable, map } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-download',
@@ -14,6 +15,9 @@ import { Observable, map } from 'rxjs';
   changeDetection: ChangeDetectionStrategy.Default,
 })
 export class DownloadComponent {
+
+  baseUrl = `${environment.apiBaseUrl}/api`;
+
   downloadProgress: number = 0;
 
   constructor(private http: HttpClient) {
@@ -23,7 +27,7 @@ export class DownloadComponent {
 
   // Method to download file with progress tracking
   downloadFile(fileName: string): Observable<any> {
-    const url = `https://localhost:7001/api/filedownload/download/${fileName}`;
+    const url = `${this.baseUrl}/filedownload/download/${fileName}`;
     return this.http.get(url, {
       responseType: 'blob',  // To get the file as a blob
       observe: 'events',     // To get the download progress events
@@ -52,7 +56,7 @@ export class DownloadComponent {
   download(fileName: string = "", isUiDownload: boolean = false) {
 
     if (!isUiDownload) {
-      window.open(`https://localhost:7001/api/filedownload/download/${fileName}`, '_blank');
+      window.open(`${this.baseUrl}/api/filedownload/download/${fileName}`, '_blank');
     } else {
       this.downloadFile(fileName).subscribe({
         next: (blob) => {
