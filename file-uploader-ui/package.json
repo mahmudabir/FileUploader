@@ -21,8 +21,11 @@
     "file-saver": "^2.0.5",
     "fluid-player": "^3.36.0",
     "hls.js": "^1.5.15",
+    "ngx-videogular": "^13.2.4",
+    "plyr": "^3.7.8",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
+    "video.js": "^8.17.4",
     "videogular2": "^7.0.2",
     "zone.js": "~0.14.3"
   },
