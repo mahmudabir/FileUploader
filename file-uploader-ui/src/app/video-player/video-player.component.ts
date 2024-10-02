@@ -63,14 +63,18 @@ export class VideoPlayerComponent implements OnInit {
 
   }
   ngOnInit(): void {
-    this.http.get(this.url, { responseType: 'blob' })
-      .subscribe(res => {
-        this.masterPlaylist = URL.createObjectURL(res);
+    // this.http.get(this.url, { responseType: 'blob' })
+    //   .subscribe(res => {
+    //     this.masterPlaylist = URL.createObjectURL(res);
 
-        setTimeout(() => {
-          this.initializeFluidPlayer();
-        }, 100);
-      });
+    //     setTimeout(() => {
+    //       this.initializeFluidPlayer();
+    //     }, 1);
+    //   });
+
+      setTimeout(() => {
+        this.initializeFluidPlayer();
+      }, 1);
   }
 
   initializeFluidPlayer(options?: Partial<FluidPlayerOptions>) {
