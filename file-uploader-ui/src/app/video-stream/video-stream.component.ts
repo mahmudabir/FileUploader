@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { VideoPlayerComponent } from "../video-player/video-player.component";
 import { environment } from '../../environments/environment';
+import { VideoPlayerComponent } from "../video-player/video-player.component";
 
 @Component({
   selector: 'app-video-stream',
@@ -13,15 +13,16 @@ import { environment } from '../../environments/environment';
   imports: [
     CommonModule,
     VideoPlayerComponent
-],
+  ],
 })
 export class VideoStreamComponent implements OnInit {
-  
+
   baseUrl = `${environment.apiBaseUrl}/api`;
 
   videoUrl: string;
   files: string[] = [];
   showPlayer = false;
+  fileName: string = "";
 
   constructor(private http: HttpClient, private route: ActivatedRoute, private router: Router) {
   }
@@ -53,13 +54,19 @@ export class VideoStreamComponent implements OnInit {
 
     this.showPlayer = false;
 
-    this.videoUrl = `${this.baseUrl}/Streaming/master.m3u8?file=${file}`;
+    this.fileName = file;
+    this.videoUrl = `${this.baseUrl}/Streaming/master.m3u8?file=${this.fileName}`;
 
     setTimeout(() => {
       this.showPlayer = true;
     }, 100);
+  }
 
-    // window.location.href = '/video?fileName=' + file;
+  clearCache() {
+    var url = `${this.baseUrl}/Streaming/clear-cache`;
+    this.http.post(url, {}).subscribe(res => {
+      
+    });
   }
 
 }

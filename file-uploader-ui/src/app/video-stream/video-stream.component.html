@@ -1,18 +1,22 @@
 <div style="display: flex; justify-content: space-between; overflow: hidden;">
-    <div style="width: 70%;">
+    <div style="width: 75%;">
         <app-video-player #videoPlayer *ngIf="showPlayer" [url]="videoUrl" [options]=""></app-video-player>
     </div>
-    <table style="width: 30%;">
-        <tr>
-            <th>File Name</th>
-            <th>Play Video</th>
-        </tr>
-        <tr *ngFor="let file of files">
-            <td>{{ file }}</td>
-            <td><button (click)="play(file)">Play</button></td>
-        </tr>
-    </table>
+    <div style="width: 25%;">
+        <button (click)="clearCache()">Clear Cache</button>
+        <table >
+            <tr style="width:26px; height:15px;">
+                <th>File Name</th>
+                <th>Play Video</th>
+            </tr >
+            <tbody>
+
+                <tr *ngFor="let file of files" class="{{file == fileName ? 'selected' : 'not-selected'}}">
+                    <td>{{ file }}</td>
+                    <!-- style="background-color: {{file == fileName ? 'cadetblue', 'white'}};" -->
+                    <td style="width:26px; height:15px;"><button (click)="play(file)">Play</button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
-
-
-

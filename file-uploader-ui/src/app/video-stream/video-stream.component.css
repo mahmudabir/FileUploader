@@ -5,3 +5,11 @@
 table, th, td {
   border: 1px solid black !important;
 }
+
+.selected {
+  background-color: rgb(144, 218, 150);
+}
+
+.not-selected {
+  background-color: unset;
+}
