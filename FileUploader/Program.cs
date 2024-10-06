@@ -1,5 +1,8 @@
 
+using FileUploader.Models;
+using FileUploader.Services;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Configuration;
 
 namespace FileUploader
 {
@@ -22,6 +25,9 @@ namespace FileUploader
             {
                 options.MultipartBodyLengthLimit = long.MaxValue; // Large file size limit
             });
+
+            ConfigureTranscodeOptions(builder);
+
 
             builder.Services.AddMemoryCache();
 
@@ -50,6 +56,22 @@ namespace FileUploader
             app.MapControllers();
 
             app.Run();
+        }
+
+        private static void ConfigureTranscodeOptions(WebApplicationBuilder builder)
+        {
+            // Bind settings from appsettings.json
+            builder.Services.Configure<TranscodeOption>(builder.Configuration.GetSection("TranscodeOption"));
+
+            // Modify and extend the settings programmatically
+            builder.Services.PostConfigure<TranscodeOption>(options =>
+            {
+                options.DefaultThreadCount = options.DefaultThreadCount == 0 ? 1 : options.DefaultThreadCount;
+                options.GpuType = FFmpegHelper.DetectGpuType();
+                options.DefaultVideoCodec = FFmpegHelper.GetTranscoder(options.GpuType);
+                options.CurrenDirectory = Path.Combine(Directory.GetCurrentDirectory(), "..\\");
+                options.UploadDirectory = Path.Combine(options.CurrenDirectory, options.OutputDirectory);
+            });
         }
     }
 }

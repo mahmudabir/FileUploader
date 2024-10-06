@@ -1,8 +1,7 @@
 ﻿using FileUploader.Models;
-
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
-
+using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -13,21 +12,22 @@ namespace FileUploader.Controllers
     [ApiController]
     public class StreamingController : ControllerBase
     {
-        private readonly string videoPath = Path.Combine(Directory.GetCurrentDirectory(), "..\\Uploads");
-        private readonly string ffmpegPath = "ffmpeg.exe"; // Path to your FFmpeg executable
-        private readonly string ffprobePath = "ffprobe.exe"; // Path to your FFprobe executable
-        private const double SegmentDuration = 10; // Segment duration in seconds
+        private readonly string _videoPath;
 
         private readonly IMemoryCache _cache;
         private readonly MemoryCacheEntryOptions _cacheEntryOptions;
+        private readonly TranscodeOption? _transcodeOption;
 
-        public StreamingController(IMemoryCache cache)
+        public StreamingController(IMemoryCache cache, IOptionsMonitor<TranscodeOption> optionsMonitor)
         {
             _cache = cache;
             _cacheEntryOptions = new MemoryCacheEntryOptions()
             {
                 SlidingExpiration = TimeSpan.FromMinutes(30)
             };
+
+            _transcodeOption = optionsMonitor.CurrentValue;
+            _videoPath = _transcodeOption.UploadDirectory;
         }
 
         [HttpPost("clear-cache")]
@@ -73,33 +73,16 @@ namespace FileUploader.Controllers
             string videoFilePath = GetFullVideoPath(decodedString);
             VideoData videoData = await GetVideoDetails(decodedString);
 
-            var defaultPreset = "ultrafast"; // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
-            var defaultThreadCount = "8";
-            var defaultVideoCodec = "h264"; // Default Video encoding: h264, hevc, libx265, libx264
-            var defaultAudioCodec = "aac"; // Default Audio encoding aac
+            var defaultPreset = _transcodeOption.DefaultPreset; // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
+            var defaultThreadCount = _transcodeOption.DefaultThreadCount;
+            var useMultiThread = _transcodeOption.IsMultiThreadingEnabled;
 
+            var defaultVideoCodec = _transcodeOption.DefaultVideoCodec;// Default Video encoding: h264, hevc, libx264
+            var defaultAudioCodec = _transcodeOption.DefaultAudioCodec;
 
-            //ffmpeg - encoders | findstr amf // (Find all encoders available in current ffmpeg)
-            var useGpu = true;
+            var useGpu = _transcodeOption.IsGpuEnabled;
 
-            if (useGpu)
-            {
-                var currentGpu = "AMD"; // AMD, NVIDIA, INTEL
-                if (currentGpu == "AMD")
-                {
-                    defaultVideoCodec += "_amf";
-                }
-                else if (currentGpu == "NVIDIA")
-                {
-                    defaultVideoCodec += "_nvenc";
-                }
-                else if (currentGpu == "INTEL")
-                {
-                    defaultVideoCodec += "_qsv";
-                }
-            }
-
-            var defaultFrameRate = "30"; // Default Frame Rate
+            var defaultFrameRate = _transcodeOption.DefaultFrameRate;
             var videoFrameRate = videoData?.FrameRate ?? defaultFrameRate;
 
             var isFpsMoreThan30 = Convert.ToDouble(videoFrameRate) > 30;
@@ -147,16 +130,17 @@ namespace FileUploader.Controllers
                 return File(cachedSegment, "video/mp2t");
             }
 
-            double startTime = index * SegmentDuration;
+            double segmentDuration = _transcodeOption.SegmentDuration;
+            double startTime = index * segmentDuration;
 
             string segmentCommand = $"-i \"{videoFilePath}\" " +
                                     $"-ss {startTime} " + // From Duration
-                                    $"-t {SegmentDuration} " + // Till Duration
+                                    $"-t {segmentDuration} " + // Till Duration
                                     $"-vf scale={config.Resolution} -r {config.FrameRate} " +
                                     $"-c:v {config.VideoCodec} -b:v {config.VideoBitRate} " +
-                                    //$"-c:a {config.AudioCodec} -b:a {config.AudioBitRate} -ar {config.AudioSampleRate} -ac {config.AudioChannels} " +
+                                    $"-c:a {config.AudioCodec} -b:a {config.AudioBitRate} -ar {config.AudioSampleRate} -ac {config.AudioChannels} " +
                                     (useGpu ? "" : $"-preset {config.Preset} ") + //$"-g {SegmentDuration * 2} " + // Frame Skip to match with audio
-                                    $"-threads {defaultThreadCount} " +
+                                    (useMultiThread ? $"-threads {defaultThreadCount} " : "") +
                                     $" -output_ts_offset {startTime} " + // Used to shift the timestamps of the output by a specified amount of time.
                                     $"-f mpegts " +
                                     $"pipe:1";
@@ -165,7 +149,7 @@ namespace FileUploader.Controllers
 
             var processStartInfo = new ProcessStartInfo
             {
-                FileName = ffmpegPath,
+                FileName = _transcodeOption.FFmpegPath,
                 Arguments = segmentCommand,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
@@ -201,12 +185,12 @@ namespace FileUploader.Controllers
                 throw ex;
             }
 
- 
+
         }
 
         private string GetFullVideoPath(string fileName)
         {
-            return Path.Combine(videoPath, fileName);
+            return Path.Combine(_videoPath, fileName);
         }
 
         private string EncodeString(string value)
@@ -240,7 +224,7 @@ namespace FileUploader.Controllers
 
                 var processStartInfo = new ProcessStartInfo
                 {
-                    FileName = ffprobePath,
+                    FileName = _transcodeOption?.FFprobePath,
                     Arguments = detailsCommand,
                     RedirectStandardOutput = true,
                     UseShellExecute = false,
@@ -316,12 +300,12 @@ namespace FileUploader.Controllers
             VideoData videoData = await GetVideoDetails(decodedString);
 
             double videoDuration = videoData.Duration;
-            int totalSegmentsRounded = (int)Math.Floor(videoDuration / SegmentDuration);
-            double segmentDurationMod = videoDuration % SegmentDuration;
+            int totalSegmentsRounded = (int)Math.Floor(videoDuration / _transcodeOption.SegmentDuration);
+            double segmentDurationMod = videoDuration % _transcodeOption.SegmentDuration;
 
             var playlist = "#EXTM3U\n" +
                            "#EXT-X-VERSION:6\n" +
-                           $"#EXT-X-TARGETDURATION:{SegmentDuration}\n" +
+                           $"#EXT-X-TARGETDURATION:{_transcodeOption.SegmentDuration}\n" +
                            "#EXT-X-PLAYLIST-TYPE:VOD\n" +
                            "#EXT-X-MEDIA-SEQUENCE:0\n" +
                            "#EXT-X-INDEPENDENT-SEGMENTS\n";
@@ -330,7 +314,7 @@ namespace FileUploader.Controllers
             {
                 var videoIndex = i.ToString().PadLeft(totalSegmentsRounded.ToString().Count(), '0');
 
-                playlist += $"#EXTINF:{SegmentDuration}.000000,\n" +
+                playlist += $"#EXTINF:{_transcodeOption.SegmentDuration}.000000,\n" +
                             $"segment/{quality}_{videoIndex}.ts\n";
             }
 
