@@ -9,10 +9,14 @@
         public string DefaultFrameRate { get; set; }
         public int DefaultThreadCount { get; set; }
 
+        public bool ForceDisableGpuUse { get; set; }
+        public bool TranscodeVideo { get; set; }
+        public bool TranscodeAudio { get; set; }
+
         public bool IsGpuEnabled { 
             get
             {
-                return GpuType != GpuType.None && DefaultVideoCodec.Contains("_");
+                return !ForceDisableGpuUse && GpuType != GpuType.None && DefaultVideoCodec.Contains("_");
             }
         }
         public bool IsMultiThreadingEnabled

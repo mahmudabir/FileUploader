@@ -12,7 +12,7 @@ namespace FileUploader.Controllers
     [ApiController]
     public class StreamingController : ControllerBase
     {
-        private readonly string _videoPath;
+        private readonly string _uploadDirectory;
 
         private readonly IMemoryCache _cache;
         private readonly MemoryCacheEntryOptions _cacheEntryOptions;
@@ -27,7 +27,7 @@ namespace FileUploader.Controllers
             };
 
             _transcodeOption = optionsMonitor.CurrentValue;
-            _videoPath = _transcodeOption.UploadDirectory;
+            _uploadDirectory = _transcodeOption.UploadDirectory;
         }
 
         [HttpPost("clear-cache")]
@@ -37,6 +37,8 @@ namespace FileUploader.Controllers
             {
                 cache.Clear();
             }
+
+            Console.Clear();
             return Ok();
         }
 
@@ -88,6 +90,8 @@ namespace FileUploader.Controllers
             var isFpsMoreThan30 = Convert.ToDouble(videoFrameRate) > 30;
 
             VideoStreamingConfiguration defaultConfig = videoData.ToVideoStreamingConfiguration();
+            var transcodeVideo = _transcodeOption.TranscodeVideo;
+            var transcodeAudio = defaultAudioCodec != defaultConfig.AudioCodec && _transcodeOption.TranscodeAudio;
 
             // Standard by ChatGPT
             VideoStreamingConfiguration config = quality switch
@@ -104,9 +108,9 @@ namespace FileUploader.Controllers
                 _ => defaultConfig,
             };
 
-            //Youtube Recommendation: https://support.google.com/youtube/answer/1722171?hl=en#zippy=%2Cvideo-codec-h%2Caudio-codec-aac-lc%2Ccontainer-mp%2Cframe-rate%2Cbitrate
+            //YouTube Recommendation: https://support.google.com/youtube/answer/1722171?hl=en#zippy=%2Cvideo-codec-h%2Caudio-codec-aac-lc%2Ccontainer-mp%2Cframe-rate%2Cbitrate
 
-            //VideoStreamingConfiguration videoStreamingConfiguration = quality switch
+            //VideoStreamingConfiguration config = quality switch
             //{
             //    "144p" => new VideoStreamingConfiguration("256:144", defaultConfig.Duration, isFpsMoreThan30 ? "450K" : "450k", defaultVideoCodec, defaultFrameRate, "64k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
             //    "240p" => new VideoStreamingConfiguration("426:240", defaultConfig.Duration, isFpsMoreThan30 ? "900K" : "900k", defaultVideoCodec, defaultFrameRate, "96k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
@@ -120,13 +124,14 @@ namespace FileUploader.Controllers
             //    _ => defaultConfig,
             //};
 
-            //VideoStreamingConfiguration config = videoStreamingConfiguration;
-
             // Cache key for the specific segment
             string cacheKey = $"{config.Resolution}_{config.VideoBitRate}_{index}_{encodedFileName}";
 
+            Stopwatch sw = Stopwatch.StartNew();
             if (_cache.TryGetValue(cacheKey, out byte[] cachedSegment))
             {
+                sw.Stop();
+                Console.WriteLine($"{quality}_{index}.ts => {sw.Elapsed}");
                 return File(cachedSegment, "video/mp2t");
             }
 
@@ -137,11 +142,16 @@ namespace FileUploader.Controllers
                                     $"-ss {startTime} " + // From Duration
                                     $"-t {segmentDuration} " + // Till Duration
                                     $"-vf scale={config.Resolution} -r {config.FrameRate} " +
-                                    $"-c:v {config.VideoCodec} -b:v {config.VideoBitRate} " +
-                                    $"-c:a {config.AudioCodec} -b:a {config.AudioBitRate} -ar {config.AudioSampleRate} -ac {config.AudioChannels} " +
+                                    $"-c:v {config.VideoCodec} " +
+                                    (transcodeVideo
+                                        ? $"-b:v {config.VideoBitRate} "
+                                        : "") +
+                                    (transcodeAudio
+                                        ? $"-c:a {config.AudioCodec} -b:a {config.AudioBitRate} -ar {config.AudioSampleRate} -ac {config.AudioChannels} "
+                                        : "-c:a copy ") +
                                     (useGpu ? "" : $"-preset {config.Preset} ") + //$"-g {SegmentDuration * 2} " + // Frame Skip to match with audio
                                     (useMultiThread ? $"-threads {defaultThreadCount} " : "") +
-                                    $" -output_ts_offset {startTime} " + // Used to shift the timestamps of the output by a specified amount of time.
+                                    $"-output_ts_offset {startTime} " + // Used to shift the timestamps of the output by a specified amount of time.
                                     $"-f mpegts " +
                                     $"pipe:1";
 
@@ -165,16 +175,22 @@ namespace FileUploader.Controllers
                         return StatusCode(500, "Error starting FFmpeg process");
                     }
 
+                    sw = Stopwatch.StartNew();
                     await using var memoryStream = new MemoryStream();
-                    await process.StandardOutput.BaseStream.CopyToAsync(memoryStream);
+
+                    var bufferSize = 1024 * 64;
+
+                    await process.StandardOutput.BaseStream.CopyToAsync(memoryStream, bufferSize);
 
                     var segmentData = memoryStream.ToArray();
 
                     if (segmentData.Length > 0)
                     {
-                        // Cache the segment for future requests
                         _cache.Set(cacheKey, segmentData, _cacheEntryOptions);
                     }
+
+                    sw.Stop();
+                    Console.WriteLine($"{quality}_{index}.ts => {sw.Elapsed}");
 
                     return File(segmentData, "video/mp2t");
                 }
@@ -190,7 +206,7 @@ namespace FileUploader.Controllers
 
         private string GetFullVideoPath(string fileName)
         {
-            return Path.Combine(_videoPath, fileName);
+            return Path.Combine(_uploadDirectory, fileName);
         }
 
         private string EncodeString(string value)

@@ -3,7 +3,11 @@
         <app-video-player #videoPlayer *ngIf="showPlayer" [url]="videoUrl" [options]=""></app-video-player>
     </div>
     <div style="width: 25%;">
-        <button (click)="clearCache()">Clear Cache</button>
+        <div style="display: flex; justify-content: space-between; overflow: hidden;">
+            <button (click)="getAllVideos()">Reload Videos</button>
+            <button (click)="clearCache()">Clear Cache</button>
+            <button (click)="reload()">Reload</button>
+        </div>
         <table >
             <tr style="width:26px; height:15px;">
                 <th>File Name</th>

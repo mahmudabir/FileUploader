@@ -49,7 +49,7 @@ namespace FileUploader.Services
                 GpuType.AMD => "h264_amf",
                 GpuType.Nvidia => "h264_nvenc",
                 GpuType.Intel => "h264_qsv",
-                _ => "libx264"
+                _ => "h264" //h264,libx264
             };
 
             return codec;

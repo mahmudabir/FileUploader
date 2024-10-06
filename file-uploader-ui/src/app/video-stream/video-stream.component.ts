@@ -69,4 +69,8 @@ export class VideoStreamComponent implements OnInit {
     });
   }
 
+  reload() {
+    window.location.reload();
+  }
+
 }

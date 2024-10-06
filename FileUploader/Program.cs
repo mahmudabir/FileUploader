@@ -58,7 +58,7 @@ namespace FileUploader
             app.Run();
         }
 
-        private static void ConfigureTranscodeOptions(WebApplicationBuilder builder)
+        private static void ConfigureTranscodeOptions(IHostApplicationBuilder builder)
         {
             // Bind settings from appsettings.json
             builder.Services.Configure<TranscodeOption>(builder.Configuration.GetSection("TranscodeOption"));
@@ -67,7 +67,7 @@ namespace FileUploader
             builder.Services.PostConfigure<TranscodeOption>(options =>
             {
                 options.DefaultThreadCount = options.DefaultThreadCount == 0 ? 1 : options.DefaultThreadCount;
-                options.GpuType = FFmpegHelper.DetectGpuType();
+                options.GpuType = options.ForceDisableGpuUse ? GpuType.None : FFmpegHelper.DetectGpuType();
                 options.DefaultVideoCodec = FFmpegHelper.GetTranscoder(options.GpuType);
                 options.CurrenDirectory = Path.Combine(Directory.GetCurrentDirectory(), "..\\");
                 options.UploadDirectory = Path.Combine(options.CurrenDirectory, options.OutputDirectory);
