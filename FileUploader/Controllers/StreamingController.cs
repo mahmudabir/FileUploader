@@ -1,7 +1,9 @@
 ﻿using FileUploader.Models;
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -56,10 +58,10 @@ namespace FileUploader.Controllers
         }
 
         // Serve dynamic playlist based on video duration and resolution
-        [HttpGet("{encodedFileName}/{quality}.m3u8")]
-        public async Task<IActionResult> GetQualityPlaylist([FromRoute] string quality, [FromRoute] string encodedFileName)
+        [HttpGet("{encodedFileName}/{quality}_{height}_{width}.m3u8")]
+        public async Task<IActionResult> GetQualityPlaylist([FromRoute] string quality, [FromRoute] int height, [FromRoute] int width, [FromRoute] string encodedFileName)
         {
-            string playlist = await GenerateSegmentPlaylist(quality, encodedFileName);
+            string playlist = await GenerateSegmentPlaylist(quality, height, width, encodedFileName);
 
             System.IO.File.WriteAllText($"{quality}.m3u8", playlist);
 
@@ -68,8 +70,8 @@ namespace FileUploader.Controllers
         }
 
         // Serve video segments on-demand for any resolution
-        [HttpGet("{encodedFileName}/segment/{quality}_{index}.ts")]
-        public async Task<IActionResult> GetVideoSegment(string quality, int index, string encodedFileName)
+        [HttpGet("{encodedFileName}/segment/{quality}_{height}_{width}_{index}.ts")]
+        public async Task<IActionResult> GetVideoSegment(string quality, int index, int height, int width, string encodedFileName)
         {
             string decodedString = DecodeString(encodedFileName);
             string videoFilePath = GetFullVideoPath(decodedString);
@@ -91,20 +93,36 @@ namespace FileUploader.Controllers
 
             VideoStreamingConfiguration defaultConfig = videoData.ToVideoStreamingConfiguration();
             var transcodeVideo = _transcodeOption.TranscodeVideo;
+            var disableVideoBitrateTranscoding = _transcodeOption.DisableVideoBitrateTranscoding;
             var transcodeAudio = defaultAudioCodec != defaultConfig.AudioCodec && _transcodeOption.TranscodeAudio;
 
-            // Standard by ChatGPT
+            //// Standard by ChatGPT
+            //VideoStreamingConfiguration config = quality switch
+            //{
+            //    "144p" => new VideoStreamingConfiguration("256:144", 0, "300k", defaultVideoCodec, defaultFrameRate, "64k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
+            //    "240p" => new VideoStreamingConfiguration("426:240", 0, "500k", defaultVideoCodec, defaultFrameRate, "96k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
+            //    "360p" => new VideoStreamingConfiguration("640:360", 0, "800k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "480p" => new VideoStreamingConfiguration("854:480", 0, "1200k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "720p" => new VideoStreamingConfiguration("1280:720", 0, "2500k", defaultVideoCodec, videoFrameRate, "160k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "1080p" => new VideoStreamingConfiguration("1920:1080", 0, "4500k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "2k" => new VideoStreamingConfiguration("2560:1440", 0, "8000k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "4k" => new VideoStreamingConfiguration("3840:2160", 0, "20000k", defaultVideoCodec, videoFrameRate, "256k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    "8k" => new VideoStreamingConfiguration("7680:4320", 0, "40000k", defaultVideoCodec, videoFrameRate, "320k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+            //    _ => defaultConfig,
+            //};
+
+            // Resolution video wise
             VideoStreamingConfiguration config = quality switch
             {
-                "144p" => new VideoStreamingConfiguration("256:144", 0, "300k", defaultVideoCodec, defaultFrameRate, "64k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
-                "240p" => new VideoStreamingConfiguration("426:240", 0, "500k", defaultVideoCodec, defaultFrameRate, "96k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
-                "360p" => new VideoStreamingConfiguration("640:360", 0, "800k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "480p" => new VideoStreamingConfiguration("854:480", 0, "1200k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "720p" => new VideoStreamingConfiguration("1280:720", 0, "2500k", defaultVideoCodec, videoFrameRate, "160k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "1080p" => new VideoStreamingConfiguration("1920:1080", 0, "4500k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "2k" => new VideoStreamingConfiguration("2560:1440", 0, "8000k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "4k" => new VideoStreamingConfiguration("3840:2160", 0, "20000k", defaultVideoCodec, videoFrameRate, "256k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
-                "8k" => new VideoStreamingConfiguration("7680:4320", 0, "40000k", defaultVideoCodec, videoFrameRate, "320k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "144p" => new VideoStreamingConfiguration($"{width}:{height}", 0, "300k", defaultVideoCodec, defaultFrameRate, "64k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
+                "240p" => new VideoStreamingConfiguration($"{width}:{height}", 0, "500k", defaultVideoCodec, defaultFrameRate, "96k", defaultAudioCodec, "44100", defaultConfig.AudioChannels, defaultPreset),
+                "360p" => new VideoStreamingConfiguration($"{width}:{height}", 0, "800k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "480p" => new VideoStreamingConfiguration($"{width}:{height}", 0, "1200k", defaultVideoCodec, defaultFrameRate, "128k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "720p" => new VideoStreamingConfiguration($"{width}:{height}", 0, "2500k", defaultVideoCodec, videoFrameRate, "160k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "1080p" => new VideoStreamingConfiguration($"{width}:{height}", 0, "4500k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "2k" => new VideoStreamingConfiguration($"{width}:{height}", 0, "8000k", defaultVideoCodec, videoFrameRate, "192k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "4k" => new VideoStreamingConfiguration($"{width}:{height}", 0, "20000k", defaultVideoCodec, videoFrameRate, "256k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
+                "8k" => new VideoStreamingConfiguration($"{width}:{height}", 0, "40000k", defaultVideoCodec, videoFrameRate, "320k", defaultAudioCodec, "48000", defaultConfig.AudioChannels, defaultPreset),
                 _ => defaultConfig,
             };
 
@@ -125,10 +143,10 @@ namespace FileUploader.Controllers
             //};
 
             // Cache key for the specific segment
-            string cacheKey = $"{config.Resolution}_{config.VideoBitRate}_{index}_{encodedFileName}";
+            string cacheKey = $"{quality}_{height}_{width}_{index}_{config.VideoBitRate}_{encodedFileName}";
 
             Stopwatch sw = Stopwatch.StartNew();
-            if (_cache.TryGetValue(cacheKey, out byte[] cachedSegment))
+            if (_transcodeOption.IsCachingEnabled && _cache.TryGetValue(cacheKey, out byte[] cachedSegment))
             {
                 sw.Stop();
                 Console.WriteLine($"{quality}_{index}.ts => {sw.Elapsed}");
@@ -141,14 +159,11 @@ namespace FileUploader.Controllers
             string segmentCommand = $"-i \"{videoFilePath}\" " +
                                     $"-ss {startTime} " + // From Duration
                                     $"-t {segmentDuration} " + // Till Duration
-                                    $"-vf scale={config.Resolution} -r {config.FrameRate} " +
-                                    $"-c:v {config.VideoCodec} " +
-                                    (transcodeVideo
-                                        ? $"-b:v {config.VideoBitRate} "
-                                        : "") +
-                                    (transcodeAudio
-                                        ? $"-c:a {config.AudioCodec} -b:a {config.AudioBitRate} -ar {config.AudioSampleRate} -ac {config.AudioChannels} "
-                                        : "-c:a copy ") +
+                                    $@"-vf scale=""{config.Resolution},format=yuv420p"" -r {config.FrameRate} " + // ,format=yuv420p for 10-bit to 8-bit
+                                    (transcodeVideo ? $"-c:v {config.VideoCodec} " : "-c:v copy") +
+                                    (disableVideoBitrateTranscoding ? "" : $"-b:v {config.VideoBitRate} ") +
+                                    $"-c:a {config.AudioCodec} " +
+                                    (!transcodeAudio ? $"" : $" -b:a {config.AudioBitRate} -ar {config.AudioSampleRate} -ac {config.AudioChannels} ") +
                                     (useGpu ? "" : $"-preset {config.Preset} ") + //$"-g {SegmentDuration * 2} " + // Frame Skip to match with audio
                                     (useMultiThread ? $"-threads {defaultThreadCount} " : "") +
                                     $"-output_ts_offset {startTime} " + // Used to shift the timestamps of the output by a specified amount of time.
@@ -168,6 +183,7 @@ namespace FileUploader.Controllers
 
             try
             {
+                sw = Stopwatch.StartNew();
                 using (var process = Process.Start(processStartInfo))
                 {
                     if (process == null)
@@ -176,23 +192,34 @@ namespace FileUploader.Controllers
                     }
 
                     sw = Stopwatch.StartNew();
-                    await using var memoryStream = new MemoryStream();
-
-                    var bufferSize = 1024 * 64;
-
-                    await process.StandardOutput.BaseStream.CopyToAsync(memoryStream, bufferSize);
-
-                    var segmentData = memoryStream.ToArray();
-
-                    if (segmentData.Length > 0)
+                    if (_transcodeOption.IsCachingEnabled)
                     {
-                        _cache.Set(cacheKey, segmentData, _cacheEntryOptions);
+                        await using var memoryStream = new MemoryStream();
+
+                        var bufferSize = 1024 * 64;
+
+                        await process.StandardOutput.BaseStream.CopyToAsync(memoryStream, bufferSize);
+
+                        var segmentData = memoryStream.ToArray();
+
+                        if (segmentData.Length > 0)
+                        {
+                            _cache.Set(cacheKey, segmentData, _cacheEntryOptions);
+                        }
+
+                        sw.Stop();
+                        Console.WriteLine($"{quality}_{index}.ts => {sw.Elapsed}");
+
+                        return File(segmentData, "video/mp2t");
+                    }
+                    else
+                    {
+                        sw.Stop();
+                        Console.WriteLine($"{quality}_{index}.ts => {sw.Elapsed}");
+
+                        return File(process.StandardOutput.BaseStream, "video/mp2t");
                     }
 
-                    sw.Stop();
-                    Console.WriteLine($"{quality}_{index}.ts => {sw.Elapsed}");
-
-                    return File(segmentData, "video/mp2t");
                 }
             }
             catch (Exception ex)
@@ -270,7 +297,8 @@ namespace FileUploader.Controllers
             return videoData;
         }
 
-        private async Task<string> GenerateMasterPlaylist(string file)
+        [Obsolete(error: true, message: "Not used anymore")]
+        private async Task<string> GenerateMasterPlaylistOld(string file)
         {
             string _apiBaseUrl = $"{Request.Scheme}://{Request.Host}";
             var playlistPathPrefix = $"{_apiBaseUrl}/api/streaming";
@@ -278,7 +306,7 @@ namespace FileUploader.Controllers
             VideoData videoData = await GetVideoDetails(file);
             var encodedFileName = EncodeString(file);
 
-            var qualityLevels = new List<(int bandwidth, string resolution, int height, int width)>
+            var qualityLevels = new List<(long bandwidth, string quality, int height, int width)>
             {
                 ((300 * 1000), "144p", 144, 256),
                 ((500 * 1000), "240p", 240, 426),
@@ -293,13 +321,14 @@ namespace FileUploader.Controllers
 
             var masterPlaylist = "#EXTM3U\n\n";
 
-            foreach (var (bandwidth, resolution, height, width) in qualityLevels)
+            foreach (var (bandwidth, quality, height, width) in qualityLevels)
             {
                 // Only include qualities that are smaller than or equal to the current video resolution
                 if (height <= videoData.Height && width <= videoData.Width) // Work on different aspect ratio to show every type of resolution correctly
                 {
-                    masterPlaylist += $"#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},RESOLUTION={height}x{width}\n";
-                    masterPlaylist += $"{encodedFileName}/{resolution}.m3u8\n\n";
+                    //masterPlaylist += $"#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},RESOLUTION={height}x{width}\n";
+                    //masterPlaylist += $"{encodedFileName}/{quality}.m3u8\n\n";
+                    masterPlaylist += GenerateM3U8File(encodedFileName, quality, height, width, bandwidth);
                 }
             }
 
@@ -307,7 +336,107 @@ namespace FileUploader.Controllers
         }
 
 
-        private async Task<string> GenerateSegmentPlaylist(string quality, string encodedFileName)
+        private string GenerateM3U8File(string encodedFileName, string quality, long height, long width, long bandwidth)
+        {
+            string item = string.Empty;
+            item += $"#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},RESOLUTION={height}x{width}\n";
+            item += $"{encodedFileName}/{quality}_{height}_{width}.m3u8\n\n";
+            return item;
+        }
+
+        private async Task<string> GenerateMasterPlaylist(string file)
+        {
+            string _apiBaseUrl = $"{Request.Scheme}://{Request.Host}";
+            var playlistPathPrefix = $"{_apiBaseUrl}/api/streaming";
+
+            var masterPlaylist = "#EXTM3U\n\n";
+
+            VideoData videoData = await GetVideoDetails(file);
+            var encodedFileName = EncodeString(file);
+
+            long originalWidth = videoData.Width ?? 0;
+            long originalHeight = videoData.Height ?? 0;
+
+
+            var originalQuality = string.Empty;
+            long originalBandwidth = 0;
+
+            // Target heights (144p, 240p, 360p, 480p, 720p, 1080p, 1440p, 2160p, 4320p)
+            int[] targetHeights = { 144, 240, 360, 480, 720, 1080, 1440, 2160, 4320 };
+
+            var qualityLevels = new List<(long bandwidth, string quality, int height, int width)>
+            {
+                ((300 * 1000), "144p", 144, 256),
+                ((500 * 1000), "240p", 240, 426),
+                ((800 * 1000), "360p", 360, 640),
+                ((1200 * 1000), "480p", 480, 854),
+                ((2500 * 1000), "720p", 720, 1280),
+                ((4500 * 1000), "1080p", 1080, 1920),
+                ((8000 * 1000), "1440p", 1440, 2560),
+                ((20000 * 1000), "4k", 2160, 3840),
+                ((40000 * 1000), "8k", 432, 7680)
+            };
+
+            // Compute aspect ratio
+            double aspectRatio = (double)originalWidth / (double)originalHeight;
+
+            bool originalResolutionProcessed = false;
+
+            // Loop through target resolutions and generate M3U8 if within bounds
+            foreach (var targetHeight in qualityLevels)
+            {
+                if (targetHeight.height > originalHeight) break;  // Stop if the target is larger than the original
+
+                // Calculate target width based on aspect ratio
+                int targetWidth = (int)(targetHeight.height * aspectRatio);
+
+                // Generate the FFmpeg command for the resolution
+                masterPlaylist += GenerateM3U8File(encodedFileName, targetHeight.quality, targetHeight.height, targetWidth, targetHeight.bandwidth);
+
+                // Check if we've hit the original resolution
+                if (targetHeight.height == originalHeight && targetWidth == originalWidth)
+                {
+                    originalResolutionProcessed = true;
+                    //masterPlaylist += GenerateM3U8File(encodedFileName, targetHeight.quality, targetHeight.height, targetWidth, targetHeight.bandwidth);
+                }
+            }
+
+            // If the original resolution wasn't processed, generate it explicitly
+            if (!originalResolutionProcessed)
+            {
+
+                var targetQuality = qualityLevels.Find(x => x.height >= originalHeight && x.width >= originalWidth);
+                masterPlaylist += GenerateM3U8File(encodedFileName, targetQuality.quality, originalHeight, originalWidth, targetQuality.bandwidth);
+                //GenerateM3U8File(originalWidth, originalHeight, "input.mp4", $"output_{originalHeight}p_original.m3u8");
+            }
+
+            //var qualityLevels = new List<(long bandwidth, string quality, int height, int width)>
+            //{
+            //    ((300 * 1000), "144p", 144, 256),
+            //    ((500 * 1000), "240p", 240, 426),
+            //    ((800 * 1000), "360p", 360, 640),
+            //    ((1200 * 1000), "480p", 480, 854),
+            //    ((2500 * 1000), "720p", 720, 1280),
+            //    ((4500 * 1000), "1080p", 1080, 1920),
+            //    ((8000 * 1000), "1440p", 1440, 2560),
+            //    ((20000 * 1000), "4k", 2160, 3840),
+            //    ((40000 * 1000), "8k", 4320, 7680)
+            //};
+
+            //foreach (var (bandwidth, quality, height, width) in qualityLevels)
+            //{
+            //    // Only include qualities that are smaller than or equal to the current video resolution
+            //    if (height <= videoData.Height && width <= videoData.Width) // Work on different aspect ratio to show every type of resolution correctly
+            //    {
+            //        masterPlaylist += GenerateM3U8File(encodedFileName, quality, height, width, bandwidth);
+            //    }
+            //}
+
+            return masterPlaylist;
+        }
+
+
+        private async Task<string> GenerateSegmentPlaylist(string quality, int height, int width, string encodedFileName)
         {
             string _apiBaseUrl = $"{Request.Scheme}://{Request.Host}";
             var playlistPathPrefix = $"{_apiBaseUrl}/api/streaming";
@@ -331,13 +460,13 @@ namespace FileUploader.Controllers
                 var videoIndex = i.ToString().PadLeft(totalSegmentsRounded.ToString().Count(), '0');
 
                 playlist += $"#EXTINF:{_transcodeOption.SegmentDuration}.000000,\n" +
-                            $"segment/{quality}_{videoIndex}.ts\n";
+                            $"segment/{quality}_{height}_{width}_{videoIndex}.ts\n";
             }
 
             if (segmentDurationMod > 0)
             {
                 playlist += $"#EXTINF:{Math.Round(segmentDurationMod, 6)},\n" +
-                            $"segment/{quality}_{totalSegmentsRounded}.ts\n";
+                            $"segment/{quality}_{height}_{width}_{totalSegmentsRounded}.ts\n";
             }
 
             playlist += "#EXT-X-ENDLIST\n";

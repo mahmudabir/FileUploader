@@ -2,6 +2,7 @@
 {
     public class TranscodeOption
     {
+        public bool IsCachingEnabled { get; set; }
         public string FFmpegPath { get; set; }
         public string FFprobePath { get; set; }
         public int SegmentDuration { get; set; }
@@ -11,6 +12,7 @@
 
         public bool ForceDisableGpuUse { get; set; }
         public bool TranscodeVideo { get; set; }
+        public bool DisableVideoBitrateTranscoding { get; set; }
         public bool TranscodeAudio { get; set; }
 
         public bool IsGpuEnabled { 

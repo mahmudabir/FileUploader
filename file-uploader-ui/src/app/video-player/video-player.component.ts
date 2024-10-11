@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, Input, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, OnDestroy, OnInit } from '@angular/core';
 import fluidPlayer from 'fluid-player';
 
 @Component({
@@ -13,7 +13,7 @@ import fluidPlayer from 'fluid-player';
   styleUrl: './video-player.component.css',
   changeDetection: ChangeDetectionStrategy.Default,
 })
-export class VideoPlayerComponent implements OnInit {
+export class VideoPlayerComponent implements OnInit, OnDestroy {
 
   public player: FluidPlayerInstance;
 
@@ -62,6 +62,12 @@ export class VideoPlayerComponent implements OnInit {
 
 
   }
+  ngOnDestroy(): void {
+    console.log("Video Player Destroyed!!!");
+    
+    this.player.destroy();
+  }
+
   ngOnInit(): void {
     // this.http.get(this.url, { responseType: 'blob' })
     //   .subscribe(res => {

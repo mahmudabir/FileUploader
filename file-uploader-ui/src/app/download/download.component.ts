@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
+import { Observable, Subscription, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 @Component({
@@ -14,14 +14,21 @@ import { environment } from '../../environments/environment';
   styleUrl: './download.component.css',
   changeDetection: ChangeDetectionStrategy.Default,
 })
-export class DownloadComponent {
+export class DownloadComponent implements OnInit {
 
   baseUrl = `${environment.apiBaseUrl}/api`;
 
   downloadProgress: number = 0;
 
+  files: string[] = [];
+  fileName: string = "";
+
   constructor(private http: HttpClient) {
 
+  }
+
+  ngOnInit(): void {
+    this.getAllVideos();
   }
 
 
@@ -53,12 +60,14 @@ export class DownloadComponent {
     );
   }
 
+  downloadSubscription: Subscription;
+
   download(fileName: string = "", isUiDownload: boolean = false) {
 
     if (!isUiDownload) {
-      window.open(`${this.baseUrl}/api/filedownload/download/${fileName}`, '_blank');
+      window.open(`${this.baseUrl}/filedownload/download/${fileName}`, '_blank');
     } else {
-      this.downloadFile(fileName).subscribe({
+      this.downloadSubscription = this.downloadFile(fileName).subscribe({
         next: (blob) => {
 
           try {
@@ -86,7 +95,7 @@ export class DownloadComponent {
               // Revoke the blob URL to free memory
               URL.revokeObjectURL(blobUrl);
 
-              alert("File downloaded successfully");
+              // alert("File downloaded successfully");
             } else {
 
             }
@@ -102,4 +111,19 @@ export class DownloadComponent {
     }
 
   }
+
+  cancelDownload () {
+    this.downloadSubscription?.unsubscribe();
+    this.downloadProgress = 0;
+  }
+
+  getAllVideos() {
+    this.http.get<string[]>(`${this.baseUrl}/files`)
+      .subscribe(res => this.files = res);
+  }
+
+  reload() {
+    window.location.reload();
+  }
+
 }

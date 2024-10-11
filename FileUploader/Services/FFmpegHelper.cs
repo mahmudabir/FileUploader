@@ -1,43 +1,52 @@
 ﻿using FileUploader.Models;
+
 using System.Diagnostics;
+using System.Management;
 
 namespace FileUploader.Services
 {
     public static class FFmpegHelper
     {
-
-        // Method to detect which GPU is available
-        public static GpuType DetectGpuType()
+        public static bool CanTranscodeWithGPU()
         {
-            //ffmpeg 
-            //-hide_banner -hwaccels => Hardware Accelerators
-            //-hide_banner -encoders => Video Encoders
-            
-            //-hide_banner -decoders | findstr amf => Video Decoders (Used for transcoding)
-            // | findstr amf // Check if AMD GPU is available
-            // | findstr nvenc // Check if NVIDIA GPU is available
-            // | findstr qsv // Check if INTEL GPU is available
-
-            Process process = new Process();
-            process.StartInfo.FileName = "ffmpeg";
-            process.StartInfo.Arguments = "-hide_banner -decoders";
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.CreateNoWindow = true;
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "ffmpeg",
+                    Arguments = "-hwaccels",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
 
             process.Start();
             string output = process.StandardOutput.ReadToEnd();
             process.WaitForExit();
 
-            // Check the output for specific hardware encoders
-            if (output.Contains("amf"))
-                return GpuType.AMD;
-            if (output.Contains("nvenc"))
-                return GpuType.Nvidia;
-            if (output.Contains("qsv"))
-                return GpuType.Intel;
+            return output.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries)
+                         .Any(line => line.Contains("cuda") || line.Contains("dxva2") || line.Contains("qsv") || line.Contains("d3d11va"));
+        }
 
-            return GpuType.None;
+        // Method to detect which GPU is available
+        public static GpuType DetectGpuType()
+        {
+            using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_VideoController"))
+            {
+                if (searcher?.Get() == null) return GpuType.None;
+                foreach (var obj in searcher.Get())
+                {
+                    var name = obj["Name"]?.ToString()?.ToLower();
+
+                    if (string.IsNullOrEmpty(name)) return GpuType.None;
+                    else if (name.Contains("nvidia")) return GpuType.Nvidia;
+                    else if (name.Contains("amd")) return GpuType.AMD;
+                    else if (name.Contains("intel")) return GpuType.Intel;
+                    else return GpuType.None;
+                }
+                return GpuType.None;
+            }
         }
 
         public static string GetTranscoder(GpuType? gpuType = null)

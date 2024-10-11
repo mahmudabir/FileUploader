@@ -1,10 +1,34 @@
-<input type="text" #inputField>
-<button (click)="download(inputField.value, checkboxField.checked)">Download File</button>
+<!-- <input type="text" #inputField> -->
+<!-- <button (click)="download(inputField.value, checkboxField.checked)">Download File</button> -->
 <input type="checkbox" #checkboxField checked="true"> <span> UI Download</span>
 <!-- Progress Bar -->
 <div *ngIf="downloadProgress > 0">
   <p>Progress: {{ downloadProgress }}%</p>
   <div style="border: 1px solid #ddd; width: 100%; height: 30px;">
     <div [style.width.%]="downloadProgress" style="background-color: green; height: 100%;"></div>
+  </div>
+</div>
+
+<div style="display: flex; justify-content: space-between; overflow: hidden;">
+  <div style="width: 100%;">
+      <div style="display: flex; justify-content: space-between; overflow: hidden;">
+          <button (click)="getAllVideos()">Reload Videos</button>
+          <button (click)="reload()">Reload</button>
+          <button (click)="cancelDownload()">Cancel Download</button>
+      </div>
+      <table  style="width: 100%;">
+          <tr style="width:26px; height:15px;">
+              <th>File Name</th>
+              <th>Events</th>
+          </tr >
+          <tbody>
+
+              <tr *ngFor="let file of files" class="{{file == fileName ? 'selected' : 'not-selected'}}">
+                  <td>{{ file }}</td>
+                  <!-- style="background-color: {{file == fileName ? 'cadetblue', 'white'}};" -->
+                  <td style="width:26px; height:15px;"><button (click)="download(file, checkboxField.checked)">Download</button></td>
+              </tr>
+          </tbody>
+      </table>
   </div>
 </div>

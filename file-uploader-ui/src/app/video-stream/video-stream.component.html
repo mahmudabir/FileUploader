@@ -8,11 +8,11 @@
             <button (click)="clearCache()">Clear Cache</button>
             <button (click)="reload()">Reload</button>
         </div>
-        <table >
+        <table>
             <tr style="width:26px; height:15px;">
                 <th>File Name</th>
-                <th>Play Video</th>
-            </tr >
+                <th>Events</th>
+            </tr>
             <tbody>
 
                 <tr *ngFor="let file of files" class="{{file == fileName ? 'selected' : 'not-selected'}}">
